@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Note de frais — Edgard Opticiens</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{
+  --bleu:#0b3d62; --bleu2:#155a8a; --accent:#1b9e77; --gris:#5b6470;
+  --bg:#eef1f5; --card:#ffffff; --bord:#d8dee6; --rouge:#c0392b; --jaune:#fff6db; --jaune-b:#e6c200;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  background:var(--bg);color:#1c2530;font-size:15px;line-height:1.45}
+.wrap{max-width:920px;margin:0 auto;padding:14px}
+header.app{background:linear-gradient(135deg,var(--bleu),var(--bleu2));color:#fff;border-radius:14px;
+  padding:16px 18px;margin-bottom:14px;box-shadow:0 3px 10px rgba(11,61,98,.18)}
+header.app h1{margin:0;font-size:19px;font-weight:700}
+header.app .sub{font-size:12.5px;opacity:.9;margin-top:2px}
+.badge-role{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);
+  padding:3px 10px;border-radius:20px;font-size:12px;margin-top:8px;font-weight:600}
+.card{background:var(--card);border:1px solid var(--bord);border-radius:14px;padding:16px;margin-bottom:14px;
+  box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.card h2{margin:0 0 12px;font-size:15px;color:var(--bleu);font-weight:700;
+  display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--bord);padding-bottom:8px}
+.card h2 .n{background:var(--bleu);color:#fff;width:22px;height:22px;border-radius:50%;
+  display:inline-flex;align-items:center;justify-content:center;font-size:12px;flex:0 0 auto}
+label{display:block;font-size:12.5px;font-weight:600;color:var(--gris);margin:0 0 4px}
+input,select,textarea{width:100%;padding:9px 11px;border:1px solid var(--bord);border-radius:9px;
+  font-size:15px;font-family:inherit;background:#fff;color:#1c2530}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--bleu2);box-shadow:0 0 0 3px rgba(21,90,138,.12)}
+textarea{resize:vertical;min-height:38px;line-height:1.35;overflow:hidden}
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:1fr 1fr 1fr}
+@media(max-width:640px){.g2,.g3{grid-template-columns:1fr}}
+.field{margin-bottom:0}
+
+/* Lignes de frais compactes */
+.ligne{border:1px solid var(--bord);border-radius:11px;padding:11px 12px;margin-bottom:10px;background:#fafbfc;position:relative}
+.ligne .lh{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.ligne .lh b{color:var(--bleu);font-size:12.5px}
+.del-ligne{background:#fbe9e7;color:var(--rouge);border:1px solid #f3c4bd;border-radius:8px;
+  padding:3px 9px;font-size:12px;font-weight:600;cursor:pointer}
+.l-row{display:grid;grid-template-columns:1.4fr 1fr;gap:9px;margin-bottom:8px}
+@media(max-width:560px){.l-row{grid-template-columns:1fr}}
+.amt-zone{display:grid;gap:9px;margin-top:4px}
+.amt-3{grid-template-columns:1fr 1fr 1fr}
+.amt-1{grid-template-columns:1fr}
+@media(max-width:560px){.amt-3{grid-template-columns:1fr 1fr}}
+.amount{text-align:right}
+.ro{background:#eef2f6;color:var(--bleu);font-weight:700}
+.km-hint{font-size:12px;color:var(--accent);font-weight:700;margin-top:2px}
+.ht-warn{font-size:11.5px;color:#9a7b00;background:var(--jaune);border:1px solid var(--jaune-b);border-radius:7px;padding:5px 8px;margin-top:2px}
+.addbtn{background:#eaf2f8;color:var(--bleu2);border:1px dashed var(--bleu2);border-radius:10px;
+  padding:11px;width:100%;font-size:14px;font-weight:600;cursor:pointer}
+
+/* Barème */
+.bareme-box{background:#f4f7fa;border:1px solid var(--bord);border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--gris)}
+.bareme-box table{width:100%;border-collapse:collapse;margin-top:6px;font-size:12px}
+.bareme-box th,.bareme-box td{border:1px solid var(--bord);padding:3px 6px;text-align:center}
+.bareme-box th{background:#e8edf3;color:var(--bleu)}
+.lock{font-size:11px;color:#8a93a0;font-style:italic;margin-top:6px}
+
+/* Totaux */
+.totaux{background:linear-gradient(135deg,#0b3d62,#155a8a);color:#fff;border-radius:12px;padding:15px}
+.totaux .row{display:flex;justify-content:space-between;gap:12px;padding:4px 0;font-size:13.5px;border-bottom:1px solid rgba(255,255,255,.12)}
+.totaux .row.tva{font-weight:700;color:#ffe9a8}
+.totaux .row.grand{font-size:19px;font-weight:800;border:none;margin-top:8px;padding-top:10px;border-top:2px solid rgba(255,255,255,.4)}
+.totaux .row span:last-child{font-variant-numeric:tabular-nums;white-space:nowrap}
+.totaux .row span:first-child{word-break:break-word}
+
+/* Justificatifs */
+.just-zone{border:2px dashed var(--bleu2);border-radius:12px;padding:16px;text-align:center;background:#f6fafd;cursor:pointer}
+.just-zone:hover{background:#eef6fc}
+.just-zone .big{font-size:28px}
+.just-list{margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:10px}
+.just-item{border:1px solid var(--bord);border-radius:9px;padding:6px;background:#fff;font-size:11px;position:relative;text-align:center}
+.just-item img{width:100%;height:72px;object-fit:cover;border-radius:6px;background:#f0f0f0}
+.just-item .pdf-ic{height:72px;display:flex;align-items:center;justify-content:center;font-size:28px;background:#fbe9e7;border-radius:6px;color:var(--rouge)}
+.just-item .nm{margin-top:4px;word-break:break-word;line-height:1.2;max-height:28px;overflow:hidden}
+.just-item .rm{position:absolute;top:-7px;right:-7px;background:var(--rouge);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:14px;cursor:pointer;line-height:1}
+.just-count{display:inline-block;background:var(--accent);color:#fff;border-radius:20px;padding:2px 11px;font-size:12px;font-weight:700;margin-left:6px}
+
+/* Signature */
+.sig-area{border:1px solid var(--bord);border-radius:10px;background:#fff;height:165px;position:relative;touch-action:none;overflow:hidden;background-color:#fff}
+.sig-area svg{display:block;width:100%;height:100%;background-color:#fff}
+.sig-hint{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);text-align:center;color:#b8c0ca;font-size:13px;pointer-events:none}
+.sig-actions{margin-top:8px}
+.sig-box .who{font-size:12px;color:var(--gris);margin-bottom:5px;font-weight:600}
+
+/* Aperçu lecture seule (signataires) */
+.review{font-size:13px}
+.review table{width:100%;border-collapse:collapse;margin-top:8px}
+.review th,.review td{border:1px solid var(--bord);padding:6px 8px;vertical-align:top;text-align:left}
+.review th{background:#eef2f6;color:var(--bleu);font-size:11.5px}
+.review td.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.review td.motif{word-break:break-word}
+.done-sigs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:10px}
+@media(max-width:640px){.done-sigs{grid-template-columns:1fr}}
+.done-sig{border:1px solid var(--bord);border-radius:10px;padding:8px;text-align:center;background:#fff}
+.done-sig .t{font-size:11px;color:var(--gris);font-weight:600;margin-bottom:4px}
+.done-sig .empty{height:60px;display:flex;align-items:center;justify-content:center;color:#c2cad3;font-size:12px;font-style:italic}
+.done-sig .dt{font-size:10px;color:#9aa3ae;margin-top:3px}
+
+/* Boutons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:none;border-radius:11px;
+  padding:13px 18px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;margin-bottom:8px}
+.btn.primary{background:linear-gradient(135deg,var(--bleu),var(--bleu2));color:#fff}
+.btn.green{background:linear-gradient(135deg,#147a5a,#1b9e77);color:#fff}
+.btn.ghost{background:#fff;color:var(--bleu);border:1px solid var(--bord)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+/* Modale rappel */
+.overlay{position:fixed;inset:0;background:rgba(15,25,40,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.overlay.on{display:flex}
+.modal{background:#fff;border-radius:16px;max-width:460px;width:100%;padding:22px;box-shadow:0 12px 40px rgba(0,0,0,.3);max-height:90vh;overflow:auto}
+.modal h3{margin:0 0 6px;color:var(--bleu);font-size:18px;display:flex;align-items:center;gap:8px}
+.modal .chk{display:flex;gap:10px;align-items:flex-start;background:var(--jaune);border:1px solid var(--jaune-b);
+  border-radius:10px;padding:12px;margin:14px 0;font-size:13.5px}
+.modal .chk input{width:20px;height:20px;flex:0 0 auto;margin-top:1px}
+.modal ul{margin:8px 0;padding-left:20px;font-size:13.5px;color:var(--gris)}
+.modal .ftr{display:flex;gap:10px;margin-top:6px}
+.modal .ftr .btn{flex:1;padding:11px;margin:0}
+
+.note{font-size:12.5px;color:var(--gris);background:#f4f7fa;border-left:3px solid var(--bleu2);padding:9px 12px;border-radius:0 8px 8px 0;margin:0 0 12px}
+.spin{position:fixed;inset:0;background:rgba(255,255,255,.85);display:none;align-items:center;justify-content:center;z-index:60;flex-direction:column;gap:14px}
+.spin.on{display:flex}
+.spin .s{width:42px;height:42px;border:4px solid #d8e2ec;border-top-color:var(--bleu);border-radius:50%;animation:r 0.8s linear infinite}
+@keyframes r{to{transform:rotate(360deg)}}
+.linkbox{background:#eef6f2;border:1px solid #cfe6dc;border-radius:10px;padding:12px;margin-top:4px}
+.linkbox input{font-size:12px;margin:6px 0}
+.hidden{display:none!important}
+/* conteneur PDF hors écran */
+#printDoc{position:absolute;left:-10000px;top:0;width:780px;background:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="app">
+    <h1>📝 Note de frais</h1>
+    <div class="sub">Edgard Opticiens · Générale d'Optique</div>
+    <div class="badge-role" id="roleBadge">Collaborateur</div>
+  </header>
+
+  <div class="card" id="instructBox" style="display:none">
+    <div class="note" id="instructTxt"></div>
+  </div>
+
+  <!-- ===== IDENTITÉ ===== -->
+  <div class="card" id="cardIdent">
+    <h2><span class="n">1</span> Identité &amp; période</h2>
+    <div class="grid g2">
+      <div class="field"><label>Société</label><select id="soc"></select></div>
+      <div class="field"><label>E-mail du directeur (destinataire de la signature)</label>
+        <input id="dirEmail" type="email" placeholder="prenom.nom@groupe-edgard.com" autocomplete="off"></div>
+      <div class="field"><label>Nom</label><input id="nom" placeholder="NOM"></div>
+      <div class="field"><label>Prénom</label><input id="prenom" placeholder="Prénom"></div>
+      <div class="field"><label>Mois concerné</label><select id="mois"></select></div>
+      <div class="field"><label>Année</label><select id="annee"></select></div>
+    </div>
+  </div>
+
+  <!-- ===== APERÇU lecture seule (signataires) ===== -->
+  <div class="card" id="cardReview" style="display:none">
+    <h2><span class="n">📄</span> Détail de la note</h2>
+    <div class="review" id="reviewBody"></div>
+  </div>
+
+  <!-- ===== LIGNES (collaborateur) ===== -->
+  <div class="card" id="cardLignes">
+    <h2><span class="n">2</span> Dépenses</h2>
+    <div class="note">Pour chaque dépense : choisissez le <b>type</b>, le motif, puis le <b>montant HT</b> et la <b>TVA</b>
+      (le TTC se calcule tout seul). Pour un trajet véhicule, choisissez « Indemnités kilométriques » et saisissez les km.</div>
+    <div id="lignes"></div>
+    <button class="addbtn" id="addLigne">＋ Ajouter une dépense</button>
+  </div>
+
+  <!-- ===== VÉHICULE / BARÈME (collaborateur) ===== -->
+  <div class="card" id="cardVehicule">
+    <h2><span class="n">3</span> Véhicule (indemnités kilométriques)</h2>
+    <div class="grid g2">
+      <div class="field"><label>Puissance fiscale du véhicule (CV)</label>
+        <input id="cv" type="number" min="1" max="15" step="1" value="3" inputmode="numeric">
+        <div class="lock">Plafonné à 9 CV : au-delà, le taux de 9 CV s'applique.</div></div>
+      <div class="field"><label>Récapitulatif kilométrique</label><div class="bareme-box" id="ikSummary">—</div></div>
+    </div>
+    <div class="bareme-box" style="margin-top:12px">
+      <b>Barème fiscal 2026</b> (mis à jour par les RH — non modifiable)
+      <table>
+        <tr><th>CV</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9 et +</th></tr>
+        <tr><td>€/km</td><td>0,329</td><td>0,406</td><td>0,436</td><td>0,465</td><td>0,497</td><td>0,497</td><td>0,497</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== RÉCAP ===== -->
+  <div class="card" id="cardTotaux">
+    <h2><span class="n">4</span> Récapitulatif</h2>
+    <div class="totaux" id="totaux"></div>
+  </div>
+
+  <!-- ===== JUSTIFICATIFS (collaborateur) ===== -->
+  <div class="card" id="cardJust">
+    <h2><span class="n">5</span> Justificatifs &amp; RIB <span class="just-count" id="justCount">0</span></h2>
+    <div class="note">Joignez une photo ou un PDF par dépense (tickets, reçus, factures…) <b>et votre RIB</b>.
+      Les images sont ajoutées au PDF de la note ; les justificatifs PDF sont à joindre séparément à votre e-mail.</div>
+    <div class="just-zone" id="justZone">
+      <div class="big">📎</div><div><b>Ajouter justificatifs + RIB</b></div>
+      <div style="font-size:12px;color:var(--gris)">Photo, capture ou PDF — plusieurs fichiers possibles</div>
+    </div>
+    <input id="justInput" type="file" accept="image/*,application/pdf" multiple class="hidden">
+    <div class="just-list" id="justList"></div>
+  </div>
+
+  <!-- ===== SIGNATURE active ===== -->
+  <div class="card" id="cardSign" style="display:none">
+    <h2><span class="n">✍️</span> <span id="signTitle">Votre signature</span></h2>
+    <div class="sig-box">
+      <div class="who" id="signWho"></div>
+      <div class="sig-area" id="sigArea"><div class="sig-hint" id="sigHint">Signez ici avec le doigt ou la souris</div></div>
+      <div class="sig-actions"><button class="btn ghost" id="clrSig">Effacer</button></div>
+    </div>
+  </div>
+
+  <!-- ===== ACTIONS ===== -->
+  <div class="card" id="cardActions"></div>
+
+  <div style="text-align:center;font-size:11px;color:#9aa3ae;margin:16px 0">
+    Edgard Opticiens — outil interne · 100&nbsp;% statique
+  </div>
+</div>
+
+<!-- conteneur de génération PDF (hors écran) -->
+<div id="printDoc"></div>
+
+<!-- Modale rappel -->
+<div class="overlay" id="reminder">
+  <div class="modal">
+    <h3>⚠️ Avant d'envoyer</h3>
+    <p style="margin:6px 0;font-size:14px">Vérifiez que <b>tout</b> est bien joint pour le paiement :</p>
+    <ul>
+      <li>Tous les justificatifs (tickets, reçus, factures)</li>
+      <li><b>Votre RIB</b></li>
+    </ul>
+    <div style="font-size:13px;color:var(--gris)">Pièces jointes ajoutées : <b id="remCount">0</b></div>
+    <label class="chk">
+      <input type="checkbox" id="remCheck">
+      <span>Je confirme avoir joint l'ensemble des justificatifs <b>et mon RIB</b> nécessaires au remboursement.</span>
+    </label>
+    <div class="ftr">
+      <button class="btn ghost" id="remCancel">Revenir</button>
+      <button class="btn primary" id="remOk" disabled>Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<div class="spin" id="spin"><div class="s"></div><div id="spinTxt" style="font-size:14px;color:var(--bleu);font-weight:600">Patientez…</div></div>
+
+<script>
+/* ============================ RÉFÉRENCES ============================ */
+var SOCIETES=["SAS EDGARD DEVELOPPEMENT","SAS ANGO","SAS BORDO","SAS BIARRO","SAS CAENPO","SAS GIRO",
+"SAS HAVRO","SAS JISAM","SAS LYONO","SAS MANSO","SAS MARSEILLO","SAS NANCEO","SAS NICEO","SAS NANTO",
+"SAS ORLO","SAS REIMO","SAS STRABO","SAS TURO","SARL CHATO","SARL CHEMILLO","SARL CHOLO","SARL DUNES",
+"SARL ECUME","SAS FORMIO","SARL MARAIS","SARL MUDO","SARL NIORTO"];
+var MOIS=["JANVIER","FÉVRIER","MARS","AVRIL","MAI","JUIN","JUILLET","AOÛT","SEPTEMBRE","OCTOBRE","NOVEMBRE","DÉCEMBRE"];
+var BAREME_2026={3:0.329,4:0.406,5:0.436,6:0.465,7:0.497,8:0.497,9:0.497};
+var TYPES=[
+  {k:"ik",          l:"Indemnités kilométriques"},
+  {k:"deplacements",l:"Déplacements (péage, parking)"},
+  {k:"repas",       l:"Repas"},
+  {k:"postaux",     l:"Frais postaux"},
+  {k:"fournitures", l:"Fournitures administratives"},
+  {k:"petits",      l:"Petits matériels"},
+  {k:"divers",      l:"Divers"},
+  {k:"hotelTrain",  l:"Hôtel + Train"}
+];
+function typeLabel(k){for(var i=0;i<TYPES.length;i++)if(TYPES[i].k===k)return TYPES[i].l;return k;}
+var EMAIL_DIRECTION="j.deruy@groupe-edgard.com";
+var EMAIL_COMPTA="compta@groupe-edgard.com";
+
+/* ============================ HELPERS ============================ */
+function ge(id){return document.getElementById(id)}
+function gv(id){var e=ge(id);return e?(e.value||"").trim():""}
+function num(n){return (+n)||0}
+function eur(n){return (Math.round((+n||0)*100)/100).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'}
+function taux(cv){var c=Math.round(+cv)||3;if(c<3)c=3;if(c>9)c=9;return BAREME_2026[c];}
+function spin(on,txt){ge('spinTxt').textContent=txt||'Patientez…';ge('spin').classList.toggle('on',!!on);}
+function todayFR(){return new Date().toLocaleDateString('fr-FR');}
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function autoGrow(t){t.style.height='auto';t.style.height=(t.scrollHeight)+'px';}
+
+var STATE={role:'collab',sigC:null,sigD:null,sigG:null,tsC:'',tsD:'',tsG:''};
+var JUST=[]; var ligneSeq=0;
+
+/* ============================ SELECTS ============================ */
+function fillSelect(id,arr){var s=ge(id);s.innerHTML='';arr.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o);});}
+function initSelects(){
+  fillSelect('soc',SOCIETES);fillSelect('mois',MOIS);
+  var y=new Date().getFullYear(),yrs=[];for(var i=y-1;i<=y+2;i++)yrs.push(String(i));
+  fillSelect('annee',yrs);ge('annee').value=String(y);ge('mois').value=MOIS[new Date().getMonth()];
+}
+
+/* ============================ LIGNES ============================ */
+function typeOptions(sel){
+  return TYPES.map(function(t){return '<option value="'+t.k+'"'+(t.k===sel?' selected':'')+'>'+t.l+'</option>';}).join('');
+}
+function ligneHTML(id){
+  return '<div class="ligne" id="ligne-'+id+'">'+
+    '<div class="lh"><b>Dépense</b><button class="del-ligne" data-del="'+id+'">Supprimer</button></div>'+
+    '<div class="l-row">'+
+      '<div class="field"><label>Type de dépense</label><select data-f="type" data-id="'+id+'">'+typeOptions('deplacements')+'</select></div>'+
+      '<div class="field"><label>Date du justificatif</label><input data-f="date" data-id="'+id+'" type="date"></div>'+
+    '</div>'+
+    '<div class="field"><label>Motif / Descriptif</label><textarea data-f="motif" data-id="'+id+'" rows="1" placeholder="Ex : déjeuner client, péage A6…"></textarea></div>'+
+    '<div class="amt-zone" data-zone="'+id+'"></div>'+
+  '</div>';
+}
+function renderAmtZone(id){
+  var l=ge('ligne-'+id);var type=l.querySelector('[data-f="type"]').value;
+  var z=l.querySelector('[data-zone="'+id+'"]');
+  if(type==='ik'){
+    z.className='amt-zone amt-1';
+    z.innerHTML='<div class="field"><label>Km parcourus</label><input class="amount" data-f="km" data-id="'+id+'" type="number" step="1" min="0" inputmode="numeric" placeholder="0"><div class="km-hint" data-ik="'+id+'"></div></div>';
+  } else if(type==='hotelTrain'){
+    z.className='amt-zone amt-1';
+    z.innerHTML='<div class="field"><label>Montant TTC (TVA non récupérable)</label><input class="amount" data-f="ttc" data-id="'+id+'" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0,00"><div class="ht-warn">ℹ️ Saisir le montant <b>TTC</b> (la TVA hôtel/train n\'est pas récupérable).</div></div>';
+  } else {
+    z.className='amt-zone amt-3';
+    z.innerHTML=
+      '<div class="field"><label>Montant HT</label><input class="amount" data-f="ht" data-id="'+id+'" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0,00"></div>'+
+      '<div class="field"><label>TVA</label><input class="amount" data-f="tva" data-id="'+id+'" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0,00"></div>'+
+      '<div class="field"><label>Montant TTC</label><input class="amount ro" data-f="ttc-show" data-id="'+id+'" readonly placeholder="0,00 €"></div>';
+  }
+  z.querySelectorAll('input').forEach(function(inp){inp.addEventListener('input',recalc);});
+  recalc();
+}
+function addLigne(data){
+  var id=++ligneSeq;
+  var div=document.createElement('div');div.innerHTML=ligneHTML(id);
+  ge('lignes').appendChild(div.firstChild);
+  var l=ge('ligne-'+id);
+  var selType=l.querySelector('[data-f="type"]');
+  if(data&&data.type)selType.value=data.type;
+  if(data){
+    if(data.date)l.querySelector('[data-f="date"]').value=data.date;
+    if(data.motif)l.querySelector('[data-f="motif"]').value=data.motif;
+  }
+  renderAmtZone(id);
+  if(data){
+    var z=l.querySelector('[data-zone="'+id+'"]');
+    if(data.type==='ik'&&data.km!=null){var k=z.querySelector('[data-f="km"]');if(k)k.value=data.km;}
+    else if(data.type==='hotelTrain'&&data.ttc!=null){var tt=z.querySelector('[data-f="ttc"]');if(tt)tt.value=data.ttc;}
+    else{var h=z.querySelector('[data-f="ht"]');if(h&&data.ht!=null)h.value=data.ht;var tv=z.querySelector('[data-f="tva"]');if(tv&&data.tva!=null)tv.value=data.tva;}
+  }
+  // bindings
+  selType.addEventListener('change',function(){
+    if(this.value==='hotelTrain'){
+      alert("Pour Hôtel / Train : saisissez bien le montant TTC (la TVA n'est pas récupérable).");
+    }
+    renderAmtZone(id);
+  });
+  l.querySelector('[data-f="date"]').addEventListener('input',recalc);
+  var mo=l.querySelector('[data-f="motif"]');
+  mo.addEventListener('input',function(){autoGrow(mo);recalc();});
+  l.querySelector('[data-del="'+id+'"]').addEventListener('click',function(){l.remove();recalc();});
+  autoGrow(mo);
+  recalc();
+}
+function lineTTC(l,t){
+  if(l.type==='ik')return Math.round(num(l.km)*t*100)/100;
+  if(l.type==='hotelTrain')return Math.round(num(l.ttc)*100)/100;
+  return Math.round((num(l.ht)+num(l.tva))*100)/100;
+}
+function readLignes(){
+  var out=[];
+  ge('lignes').querySelectorAll('.ligne').forEach(function(l){
+    var type=l.querySelector('[data-f="type"]').value;
+    var o={type:type,date:l.querySelector('[data-f="date"]').value,motif:l.querySelector('[data-f="motif"]').value,km:0,ht:0,tva:0,ttc:0};
+    var z=l.querySelector('[data-zone]');
+    if(type==='ik'){o.km=num((z.querySelector('[data-f="km"]')||{}).value);}
+    else if(type==='hotelTrain'){o.ttc=num((z.querySelector('[data-f="ttc"]')||{}).value);}
+    else{o.ht=num((z.querySelector('[data-f="ht"]')||{}).value);o.tva=num((z.querySelector('[data-f="tva"]')||{}).value);}
+    out.push(o);
+  });
+  return out;
+}
+
+/* ============================ CALCULS ============================ */
+function recalc(){
+  var lignes=readLignes();var cv=num(gv('cv'));var t=taux(cv);
+  var totKm=0,byType={},totTVA=0,totTTC=0;
+  lignes.forEach(function(l){
+    var ttc=lineTTC(l,t);l.ttc=ttc;
+    if(l.type==='ik')totKm+=num(l.km);
+    if(l.type!=='ik'&&l.type!=='hotelTrain')totTVA+=num(l.tva);
+    byType[l.type]=(byType[l.type]||0)+ttc;totTTC+=ttc;
+  });
+  // maj affichage par ligne
+  ge('lignes').querySelectorAll('.ligne').forEach(function(l){
+    var type=l.querySelector('[data-f="type"]').value;var z=l.querySelector('[data-zone]');
+    if(type==='ik'){var km=num((z.querySelector('[data-f="km"]')||{}).value);var el=z.querySelector('[data-ik]');
+      if(el)el.textContent=km>0?('Indemnité : '+km+' km × '+t.toLocaleString('fr-FR')+' € = '+eur(km*t)):'';}
+    else if(type!=='hotelTrain'){var show=z.querySelector('[data-f="ttc-show"]');
+      if(show){var ht=num((z.querySelector('[data-f="ht"]')||{}).value),tv=num((z.querySelector('[data-f="tva"]')||{}).value);show.value=eur(ht+tv);}}
+  });
+  // résumé IK
+  ge('ikSummary').innerHTML=totKm>0
+    ? ('<b>'+totKm+' km</b> × <b>'+t.toLocaleString('fr-FR')+' €</b> (CV '+Math.min(Math.max(Math.round(cv)||3,3),9)+') = <b style="color:var(--accent)">'+eur(totKm*t)+'</b>')
+    : 'Aucun trajet véhicule saisi.';
+  // récap
+  var rows='';
+  TYPES.forEach(function(ty){if(byType[ty.k]>0)rows+='<div class="row"><span>'+ty.l+'</span><span>'+eur(byType[ty.k])+'</span></div>';});
+  if(!rows)rows='<div class="row"><span>Aucune dépense saisie</span><span>'+eur(0)+'</span></div>';
+  rows+='<div class="row tva"><span>Total TVA (récupérable)</span><span>'+eur(totTVA)+'</span></div>';
+  rows+='<div class="row grand"><span>TOTAL GÉNÉRAL TTC</span><span>'+eur(totTTC)+'</span></div>';
+  ge('totaux').innerHTML=rows;
+  return {lignes:lignes,cv:cv,taux:t,totKm:totKm,byType:byType,totTVA:totTVA,totTTC:totTTC};
+}
+
+/* ============================ JUSTIFICATIFS ============================ */
+function refreshJust(){
+  var L=ge('justList');L.innerHTML='';
+  JUST.forEach(function(j,i){
+    var d=document.createElement('div');d.className='just-item';
+    var inner=j.type==='pdf'?'<div class="pdf-ic">📄</div>':'<img src="'+j.data+'">';
+    d.innerHTML=inner+'<div class="nm">'+esc(j.name)+'</div><button class="rm" data-rm="'+i+'">×</button>';
+    d.querySelector('[data-rm]').addEventListener('click',function(){JUST.splice(i,1);refreshJust();});
+    L.appendChild(d);
+  });
+  ge('justCount').textContent=JUST.length;
+  if(ge('remCount'))ge('remCount').textContent=JUST.length;
+}
+function compressImage(file,cb){
+  var r=new FileReader();
+  r.onload=function(e){var img=new Image();img.onload=function(){
+    var max=1400,w=img.width,h=img.height;if(w>max||h>max){var k=Math.min(max/w,max/h);w=Math.round(w*k);h=Math.round(h*k);}
+    var c=document.createElement('canvas');c.width=w;c.height=h;var ctx=c.getContext('2d');
+    ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);cb(c.toDataURL('image/jpeg',0.72));};img.src=e.target.result;};
+  r.readAsDataURL(file);
+}
+function handleFiles(files){
+  Array.prototype.forEach.call(files,function(f){
+    if(f.type==='application/pdf'){JUST.push({name:f.name,type:'pdf',data:null});refreshJust();}
+    else if(f.type.indexOf('image')===0){compressImage(f,function(d){JUST.push({name:f.name,type:'img',data:d});refreshJust();});}
+  });
+}
+
+/* ============================ SIGNATURE ============================ */
+var SVGNS='http://www.w3.org/2000/svg';
+var sigStrokes=[],curStroke=null,sigSvg=null,sigDrawing=false;
+function buildSigSvg(){
+  var area=ge('sigArea');area.querySelectorAll('svg').forEach(function(s){s.remove();});
+  sigSvg=document.createElementNS(SVGNS,'svg');sigSvg.setAttribute('viewBox','0 0 600 165');sigSvg.setAttribute('preserveAspectRatio','none');
+  area.appendChild(sigSvg);sigStrokes=[];curStroke=null;ge('sigHint').style.display='block';
+}
+function ptFromEvt(e){var r=ge('sigArea').getBoundingClientRect();
+  var cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;var cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;
+  return [Math.round(cx/r.width*600),Math.round(cy/r.height*165)];}
+function pathEl(stroke){var p=document.createElementNS(SVGNS,'path');var d='M '+stroke[0][0]+' '+stroke[0][1];
+  for(var i=1;i<stroke.length;i++)d+=' L '+stroke[i][0]+' '+stroke[i][1];
+  p.setAttribute('d',d);p.setAttribute('fill','none');p.setAttribute('stroke','#0b3d62');p.setAttribute('stroke-width','2.4');
+  p.setAttribute('stroke-linecap','round');p.setAttribute('stroke-linejoin','round');return p;}
+function sigStart(e){e.preventDefault();sigDrawing=true;ge('sigHint').style.display='none';curStroke=[ptFromEvt(e)];}
+function sigMove(e){if(!sigDrawing)return;e.preventDefault();curStroke.push(ptFromEvt(e));
+  if(curStroke._path)curStroke._path.remove();var p=pathEl(curStroke);sigSvg.appendChild(p);curStroke._path=p;}
+function sigEnd(){if(!sigDrawing)return;sigDrawing=false;
+  if(curStroke&&curStroke.length>1){delete curStroke._path;var thin=[curStroke[0]];
+    for(var i=1;i<curStroke.length;i++){var a=thin[thin.length-1],b=curStroke[i];if(Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])>=4)thin.push(b);}
+    if(thin[thin.length-1]!==curStroke[curStroke.length-1])thin.push(curStroke[curStroke.length-1]);sigStrokes.push(thin);}
+  curStroke=null;}
+function bindSig(){var a=ge('sigArea');
+  a.addEventListener('mousedown',sigStart);a.addEventListener('mousemove',sigMove);window.addEventListener('mouseup',sigEnd);
+  a.addEventListener('touchstart',sigStart,{passive:false});a.addEventListener('touchmove',sigMove,{passive:false});a.addEventListener('touchend',sigEnd);
+  ge('clrSig').addEventListener('click',buildSigSvg);}
+function hasSig(){return sigStrokes.length>0;}
+function sigSVGString(strokes){
+  if(!strokes||!strokes.length)return '<div style="height:58px;display:flex;align-items:center;justify-content:center;color:#bbb;font-style:italic;font-size:11px">Non signé</div>';
+  var paths='';strokes.forEach(function(st){if(st.length<1)return;var d='M '+st[0][0]+' '+st[0][1];
+    for(var i=1;i<st.length;i++)d+=' L '+st[i][0]+' '+st[i][1];
+    paths+='<path d="'+d+'" fill="none" stroke="#0b3d62" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>';});
+  return '<svg viewBox="0 0 600 165" preserveAspectRatio="xMidYMid meet" style="height:58px;width:100%;background:#fff">'+paths+'</svg>';
+}
+
+/* ============================ ENCODAGE / LIEN ============================ */
+function buildPayload(){var c=recalc();
+  return {soc:gv('soc'),nom:gv('nom'),prenom:gv('prenom'),mois:gv('mois'),annee:gv('annee'),dirEmail:gv('dirEmail'),
+    cv:c.cv,lignes:c.lignes,sigC:STATE.sigC,sigD:STATE.sigD,sigG:STATE.sigG,tsC:STATE.tsC,tsD:STATE.tsD,tsG:STATE.tsG};}
+function encodePayload(p){return LZString.compressToEncodedURIComponent(JSON.stringify(p));}
+function decodePayload(s){try{return JSON.parse(LZString.decompressFromEncodedURIComponent(s));}catch(e){return null;}}
+function baseURL(){return location.origin+location.pathname;}
+function makeLink(k,p){return baseURL()+'#'+k+'='+encodePayload(p);}
+function shortenURL(longURL,cb){
+  fetch('https://is.gd/create.php?format=simple&url='+encodeURIComponent(longURL))
+    .then(function(r){return r.text();}).then(function(t){if(t&&t.indexOf('http')===0)cb(t.trim());else throw 0;})
+    .catch(function(){fetch('https://tinyurl.com/api-create.php?url='+encodeURIComponent(longURL))
+      .then(function(r){return r.text();}).then(function(t){cb(t&&t.indexOf('http')===0?t.trim():longURL);})
+      .catch(function(){cb(longURL);});});
+}
+
+/* ============================ APERÇU + PDF (document propre) ============================ */
+function docHTML(p,forPDF){
+  var t=taux(p.cv||3);var byType={},totTVA=0,totTTC=0,totKm=0;
+  var rowsTbl='';
+  (p.lignes||[]).forEach(function(l){
+    var ttc=lineTTC(l,t);
+    if(l.type==='ik')totKm+=num(l.km);
+    if(l.type!=='ik'&&l.type!=='hotelTrain')totTVA+=num(l.tva);
+    byType[l.type]=(byType[l.type]||0)+ttc;totTTC+=ttc;
+    var htC,tvaC;
+    if(l.type==='ik'){htC=num(l.km)+' km × '+t.toLocaleString('fr-FR')+' €';tvaC='—';}
+    else if(l.type==='hotelTrain'){htC='— (TTC)';tvaC='non récup.';}
+    else{htC=eur(l.ht);tvaC=eur(l.tva);}
+    var dt=l.date?l.date.split('-').reverse().join('/'):'';
+    rowsTbl+='<tr><td>'+esc(dt)+'</td><td>'+esc(typeLabel(l.type))+'</td><td class="motif">'+esc(l.motif)+'</td>'+
+      '<td class="r">'+htC+'</td><td class="r">'+tvaC+'</td><td class="r">'+eur(ttc)+'</td></tr>';
+  });
+  var recap='';TYPES.forEach(function(ty){if(byType[ty.k]>0)recap+='<div class="row"><span>'+ty.l+'</span><span>'+eur(byType[ty.k])+'</span></div>';});
+  recap+='<div class="row tva"><span>Total TVA (récupérable)</span><span>'+eur(totTVA)+'</span></div>';
+  recap+='<div class="row grand"><span>TOTAL GÉNÉRAL TTC</span><span>'+eur(totTTC)+'</span></div>';
+
+  var sigStyle=forPDF?'padding:18px':'';
+  var html=''+
+  '<div style="'+sigStyle+';font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#1c2530;font-size:12px;background:#fff">'+
+    (forPDF?('<div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #0b3d62;padding-bottom:8px;margin-bottom:10px">'+
+      '<div><div style="font-size:18px;font-weight:800;color:#0b3d62">NOTE DE FRAIS</div>'+
+      '<div style="font-size:12px;color:#5b6470">Edgard Opticiens · Générale d\'Optique</div></div>'+
+      '<div style="text-align:right;font-size:12px"><b>'+esc(p.soc||'')+'</b><br>'+esc(p.mois||'')+' '+esc(p.annee||'')+'</div></div>'+
+      '<div style="margin-bottom:8px;font-size:13px"><b>'+esc(p.prenom||'')+' '+esc(p.nom||'')+'</b></div>'):'')+
+    '<table style="width:100%;border-collapse:collapse">'+
+      '<tr>'+
+        '<th style="border:1px solid #d8dee6;background:#eef2f6;color:#0b3d62;padding:6px 8px;text-align:left;font-size:11px">Date</th>'+
+        '<th style="border:1px solid #d8dee6;background:#eef2f6;color:#0b3d62;padding:6px 8px;text-align:left;font-size:11px">Type</th>'+
+        '<th style="border:1px solid #d8dee6;background:#eef2f6;color:#0b3d62;padding:6px 8px;text-align:left;font-size:11px">Motif</th>'+
+        '<th style="border:1px solid #d8dee6;background:#eef2f6;color:#0b3d62;padding:6px 8px;text-align:right;font-size:11px">HT</th>'+
+        '<th style="border:1px solid #d8dee6;background:#eef2f6;color:#0b3d62;padding:6px 8px;text-align:right;font-size:11px">TVA</th>'+
+        '<th style="border:1px solid #d8dee6;background:#eef2f6;color:#0b3d62;padding:6px 8px;text-align:right;font-size:11px">TTC</th>'+
+      '</tr>'+
+      rowsTbl.replace(/<td/g,'<td style="border:1px solid #d8dee6;padding:6px 8px;vertical-align:top;word-break:break-word"').replace(/class="r"/g,'class="r" align="right"').replace(/class="motif"/g,'')+
+    '</table>'+
+    '<div style="margin-top:12px;background:linear-gradient(135deg,#0b3d62,#155a8a);color:#fff;border-radius:10px;padding:12px;font-size:13px">'+
+      recap.replace(/<div class="row tva">/g,'<div style="display:flex;justify-content:space-between;padding:4px 0;font-weight:700;color:#ffe9a8">')
+           .replace(/<div class="row grand">/g,'<div style="display:flex;justify-content:space-between;padding:8px 0 0;margin-top:6px;border-top:2px solid rgba(255,255,255,.4);font-size:17px;font-weight:800">')
+           .replace(/<div class="row">/g,'<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.15)">')+
+    '</div>'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-top:14px">'+
+      '<div style="border:1px solid #d8dee6;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:#5b6470;font-weight:600;margin-bottom:4px">Collaborateur</div>'+sigSVGString(p.sigC)+'<div style="font-size:10px;color:#9aa3ae">'+esc(p.tsC||'')+'</div></div>'+
+      '<div style="border:1px solid #d8dee6;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:#5b6470;font-weight:600;margin-bottom:4px">Directeur</div>'+sigSVGString(p.sigD)+'<div style="font-size:10px;color:#9aa3ae">'+esc(p.tsD||'')+'</div></div>'+
+      '<div style="border:1px solid #d8dee6;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:#5b6470;font-weight:600;margin-bottom:4px">Direction (J. DERUY)</div>'+sigSVGString(p.sigG)+'<div style="font-size:10px;color:#9aa3ae">'+esc(p.tsG||'')+'</div></div>'+
+    '</div>'+
+  '</div>';
+  return html;
+}
+function renderReview(p){ge('reviewBody').innerHTML=docHTML(p,false);}
+
+function genPDF(cb){
+  spin(true,'Génération du PDF…');
+  var p=buildPayload();
+  ge('printDoc').innerHTML=docHTML(p,true);
+  setTimeout(function(){
+    html2canvas(ge('printDoc'),{scale:2,backgroundColor:'#ffffff',useCORS:true}).then(function(canvas){
+      var jsPDF=window.jspdf.jsPDF;var pdf=new jsPDF('p','mm','a4');
+      var pw=210,ph=297,m=8,iw=pw-2*m;var ih=canvas.height*iw/canvas.width;
+      var img=canvas.toDataURL('image/jpeg',0.92);
+      if(ih<=ph-2*m){pdf.addImage(img,'JPEG',m,m,iw,ih);}
+      else{var remaining=ih,offset=0;while(remaining>0){pdf.addImage(img,'JPEG',m,m-offset,iw,ih);
+        remaining-=(ph-2*m);offset+=(ph-2*m);if(remaining>0)pdf.addPage();}}
+      // justificatifs images
+      JUST.filter(function(j){return j.type==='img';}).forEach(function(j){
+        pdf.addPage();pdf.setFontSize(11);pdf.setTextColor(11,61,98);pdf.text('Justificatif : '+j.name,m,m+4);
+        try{var pr=pdf.getImageProperties(j.data);var availW=iw,availH=ph-(m+8)-m;var ratio=pr.width/pr.height;
+          var w=availW,hh=w/ratio;if(hh>availH){hh=availH;w=hh*ratio;}var x=m+(availW-w)/2;
+          pdf.addImage(j.data,'JPEG',x,m+8,w,hh);}catch(e){}});
+      ge('printDoc').innerHTML='';spin(false);cb(pdf);
+    }).catch(function(err){ge('printDoc').innerHTML='';spin(false);alert('Erreur PDF : '+err);});
+  },60);
+}
+function pdfFileName(){return 'NDF_'+(gv('soc')||'').replace(/\s+/g,'')+'_'+gv('nom')+'_'+gv('prenom')+'_'+gv('mois')+gv('annee')+'.pdf';}
+
+/* ============================ RÔLES ============================ */
+function setReadOnly(){
+  ge('cardLignes').style.display='none';ge('cardVehicule').style.display='none';ge('cardJust').style.display='none';
+  ['soc','dirEmail','nom','prenom','mois','annee','cv'].forEach(function(id){var e=ge(id);if(e)e.disabled=true;});
+  ge('cardReview').style.display='block';
+}
+function populate(p){
+  ge('soc').value=p.soc||SOCIETES[0];ge('dirEmail').value=p.dirEmail||'';
+  ge('nom').value=p.nom||'';ge('prenom').value=p.prenom||'';
+  ge('mois').value=p.mois||MOIS[0];ge('annee').value=p.annee||String(new Date().getFullYear());ge('cv').value=p.cv||3;
+  ge('lignes').innerHTML='';ligneSeq=0;(p.lignes||[]).forEach(function(l){addLigne(l);});
+  if(!(p.lignes||[]).length)addLigne();
+  STATE.sigC=p.sigC||null;STATE.sigD=p.sigD||null;STATE.sigG=p.sigG||null;
+  STATE.tsC=p.tsC||'';STATE.tsD=p.tsD||'';STATE.tsG=p.tsG||'';
+  recalc();
+}
+function actionBtn(label,cls,fn){var b=document.createElement('button');b.className='btn '+cls;b.innerHTML=label;b.addEventListener('click',fn);ge('cardActions').appendChild(b);return b;}
+
+/* Panneau résultat : bouton mailto déclenché par un VRAI clic (fiabilité iOS/Chrome) */
+function showResult(to,subject,body,short,withPdf){
+  ge('cardActions').innerHTML='';
+  var info=document.createElement('div');info.className='note';
+  info.innerHTML='✅ Lien de signature prêt. Cliquez sur le bouton ci-dessous pour ouvrir votre e-mail'+(withPdf?' (le PDF a été téléchargé : pensez à le joindre)':'')+'.';
+  ge('cardActions').appendChild(info);
+  actionBtn('📧 Ouvrir l\'e-mail',('primary'),function(){
+    var u='mailto:'+to+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+    window.location.href=u;
+  });
+  if(withPdf)actionBtn('⬇️ Re-télécharger le PDF','ghost',function(){genPDF(function(pdf){pdf.save(pdfFileName());});});
+  var box=document.createElement('div');box.className='linkbox';
+  box.innerHTML='<b>Lien de signature</b><div style="font-size:12px;color:var(--gris);margin:4px 0">Si l\'e-mail ne s\'ouvre pas, copiez ce lien dans votre message :</div>'+
+    '<input id="linkOut" readonly value="'+short+'"><button class="btn ghost" id="copyLink" style="margin-top:4px">Copier le lien</button>';
+  ge('cardActions').appendChild(box);
+  ge('linkOut').addEventListener('click',function(){this.select();});
+  ge('copyLink').addEventListener('click',function(){ge('linkOut').select();document.execCommand('copy');this.textContent='Copié ✅';});
+  ge('cardActions').scrollIntoView({behavior:'smooth'});
+}
+
+/* COLLABORATEUR */
+function envoiCollab(){
+  STATE.sigC=sigStrokes.slice();STATE.tsC=todayFR();
+  var p=buildPayload();var url=makeLink('s1',p);
+  spin(true,'Préparation…');
+  genPDF(function(pdf){
+    pdf.save(pdfFileName());
+    shortenURL(url,function(short){
+      spin(false);
+      var sub='[NDF] '+p.prenom+' '+p.nom+' — '+p.soc+' — '+p.mois+' '+p.annee;
+      var body='Bonjour,\n\nVeuillez trouver ma note de frais a signer.\n\n'+
+        '1) Le PDF de la note (avec justificatifs) vient d\'etre telecharge : merci de le joindre si vous transferez par e-mail.\n'+
+        '2) Cliquez sur ce lien pour verifier et signer :\n'+short+'\n\n'+
+        'Cordialement,\n'+p.prenom+' '+p.nom;
+      showResult(p.dirEmail,sub,body,short,true);
+    });
+  });
+}
+/* DIRECTEUR */
+function envoiDirecteur(){
+  if(!hasSig()){alert('Merci de signer avant d\'envoyer.');return;}
+  STATE.sigD=sigStrokes.slice();STATE.tsD=todayFR();
+  var p=buildPayload();var url=makeLink('s2',p);
+  spin(true,'Création du lien…');
+  shortenURL(url,function(short){spin(false);
+    var sub='[NDF] A valider — '+p.prenom+' '+p.nom+' — '+p.soc+' — '+p.mois+' '+p.annee;
+    var body='Bonjour,\n\nNote de frais de '+p.prenom+' '+p.nom+' ('+p.soc+'), validee et signee par le directeur.\n\n'+
+      'Merci de verifier et signer via ce lien :\n'+short+'\n\n(Les justificatifs figurent dans le PDF transmis par le collaborateur.)\n\nCordialement.';
+    showResult(EMAIL_DIRECTION,sub,body,short,false);
+  });
+}
+/* DIRECTION */
+function envoiDirection(){
+  if(!hasSig()){alert('Merci de signer avant d\'envoyer.');return;}
+  STATE.sigG=sigStrokes.slice();STATE.tsG=todayFR();
+  var p=buildPayload();var url=makeLink('s3',p);
+  spin(true,'Création du lien…');
+  shortenURL(url,function(short){spin(false);
+    var sub='[NDF] BON A PAYER — '+p.prenom+' '+p.nom+' — '+p.soc+' — '+p.mois+' '+p.annee;
+    var body='Bonjour,\n\nNote de frais de '+p.prenom+' '+p.nom+' ('+p.soc+'), signee par le directeur et la Direction (J. DERUY). Bon pour paiement.\n\n'+
+      'Note de frais signee a telecharger ici :\n'+short+'\n\n(Justificatifs dans le PDF transmis initialement par le collaborateur.)\n\nCordialement.';
+    showResult(EMAIL_COMPTA,sub,body,short,false);
+  });
+}
+/* COMPTA */
+function telechargeFinal(){genPDF(function(pdf){pdf.save(pdfFileName());});}
+
+function setupRole(){
+  var h=location.hash||'';var role='collab',data=null;
+  if(h.indexOf('#s1=')===0){role='directeur';data=decodePayload(h.slice(4));}
+  else if(h.indexOf('#s2=')===0){role='direction';data=decodePayload(h.slice(4));}
+  else if(h.indexOf('#s3=')===0){role='compta';data=decodePayload(h.slice(4));}
+  STATE.role=role;
+  if(data)populate(data);else addLigne();
+  ge('cardActions').innerHTML='';ge('cardSign').style.display='none';ge('instructBox').style.display='none';
+
+  if(role==='collab'){
+    ge('roleBadge').textContent='Collaborateur';ge('cardSign').style.display='block';
+    ge('signTitle').textContent='Votre signature';ge('signWho').textContent='Signature du collaborateur';buildSigSvg();
+    actionBtn('📨 Envoyer au directeur pour signature','primary',openReminder);
+  } else if(role==='directeur'){
+    ge('roleBadge').textContent='Directeur — signature';setReadOnly();renderReview(data);
+    ge('instructBox').style.display='block';
+    ge('instructTxt').innerHTML='Note de frais de <b>'+esc((data?data.prenom+' '+data.nom:''))+'</b>. Vérifiez, signez, puis envoyez à la Direction (J. DERUY).';
+    ge('cardSign').style.display='block';ge('signTitle').textContent='Signature du directeur';ge('signWho').textContent='Signature du directeur';buildSigSvg();
+    actionBtn('✍️ Signer &amp; envoyer à la Direction','primary',envoiDirecteur);
+  } else if(role==='direction'){
+    ge('roleBadge').textContent='Direction (J. DERUY)';setReadOnly();renderReview(data);
+    ge('instructBox').style.display='block';
+    ge('instructTxt').innerHTML='Note de frais de <b>'+esc((data?data.prenom+' '+data.nom:''))+'</b>, déjà signée par le directeur. Signez, puis envoyez à la Comptabilité.';
+    ge('cardSign').style.display='block';ge('signTitle').textContent='Signature de la Direction';ge('signWho').textContent='Signature — J. DERUY';buildSigSvg();
+    actionBtn('✍️ Signer &amp; envoyer à la Comptabilité','green',envoiDirection);
+  } else {
+    ge('roleBadge').textContent='Comptabilité — paiement';setReadOnly();renderReview(data);
+    ge('instructBox').style.display='block';
+    ge('instructTxt').innerHTML='Note de frais entièrement signée (collaborateur + directeur + Direction). Bon pour paiement. Les justificatifs figurent dans le PDF transmis par le collaborateur.';
+    actionBtn('⬇️ Télécharger la note de frais signée (PDF)','primary',telechargeFinal);
+  }
+}
+
+/* MODALE */
+function openReminder(){
+  if(!hasSig()){alert('Merci de signer la note avant l\'envoi.');return;}
+  if(!gv('dirEmail')){alert('Renseignez l\'e-mail de votre directeur.');ge('dirEmail').focus();return;}
+  if(!gv('nom')||!gv('prenom')){alert('Renseignez votre nom et prénom.');return;}
+  ge('remCount').textContent=JUST.length;ge('remCheck').checked=false;ge('remOk').disabled=true;ge('reminder').classList.add('on');
+}
+
+/* INIT */
+function init(){
+  initSelects();bindSig();
+  ge('addLigne').addEventListener('click',function(){addLigne();});
+  ge('cv').addEventListener('input',recalc);
+  ge('justZone').addEventListener('click',function(){ge('justInput').click();});
+  ge('justInput').addEventListener('change',function(e){handleFiles(e.target.files);e.target.value='';});
+  ge('remCheck').addEventListener('change',function(){ge('remOk').disabled=!this.checked;});
+  ge('remCancel').addEventListener('click',function(){ge('reminder').classList.remove('on');});
+  ge('remOk').addEventListener('click',function(){ge('reminder').classList.remove('on');envoiCollab();});
+  setupRole();
+}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
