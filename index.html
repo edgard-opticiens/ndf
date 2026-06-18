@@ -160,22 +160,9 @@ textarea{resize:vertical;min-height:38px;line-height:1.35;overflow:hidden}
     <div class="totaux" id="totaux"></div>
   </div>
 
-  <!-- JUSTIFICATIFS -->
-  <div class="card">
-    <h2><span class="n">5</span> Justificatifs &amp; RIB <span class="just-count" id="justCount">0</span></h2>
-    <div class="note">Joignez une photo ou un PDF par dépense (tickets, reçus, factures…) <b>et votre RIB</b>.
-      Tout est joint automatiquement à l'e-mail (photos fusionnées au PDF de la note ; justificatifs PDF en pièces jointes).</div>
-    <div class="just-zone" id="justZone">
-      <div class="big">📎</div><div><b>Ajouter justificatifs + RIB</b></div>
-      <div style="font-size:12px;color:var(--gris)">Photo, capture ou PDF — plusieurs fichiers possibles</div>
-    </div>
-    <input id="justInput" type="file" accept="image/*,application/pdf" multiple class="hidden">
-    <div class="just-list" id="justList"></div>
-  </div>
-
   <!-- SIGNATURES (double, même écran) -->
   <div class="card">
-    <h2><span class="n">6</span> Signatures</h2>
+    <h2><span class="n">5</span> Signatures</h2>
     <div class="note">Le <b>collaborateur</b> et le <b>directeur</b> signent ci-dessous, puis vous envoyez.</div>
     <div class="sig-grid">
       <div class="sig-pad">
@@ -194,7 +181,7 @@ textarea{resize:vertical;min-height:38px;line-height:1.35;overflow:hidden}
   <!-- ACTIONS -->
   <div class="card" id="cardActions">
     <button class="btn primary" id="btnEnvoi">📧 Signer &amp; envoyer la note de frais</button>
-    <div class="note" id="sendHint">Sur iPhone/Android, l'e-mail s'ouvre avec les pièces jointes déjà incluses. Sur ordinateur, le PDF est téléchargé et l'e-mail s'ouvre pré-rempli (à joindre en un geste).</div>
+    <div class="note" id="sendHint">L'e-mail s'ouvre avec la note signée (PDF). Pensez à y joindre vos justificatifs et votre RIB avant d'envoyer.</div>
   </div>
 
   <div style="text-align:center;font-size:11px;color:#9aa3ae;margin:16px 0">Edgard Opticiens — outil interne · 100&nbsp;% statique</div>
@@ -206,11 +193,10 @@ textarea{resize:vertical;min-height:38px;line-height:1.35;overflow:hidden}
 <div class="overlay" id="reminder">
   <div class="modal">
     <h3>⚠️ Avant d'envoyer</h3>
-    <p style="margin:6px 0;font-size:14px">Vérifiez que <b>tout</b> est bien joint pour le paiement :</p>
+    <p style="margin:6px 0;font-size:14px">⚠️ N'oubliez pas de <b>joindre vous-même dans l'e-mail</b> :</p>
     <ul><li>Tous les justificatifs (tickets, reçus, factures)</li><li><b>Votre RIB</b></li></ul>
-    <div style="font-size:13px;color:var(--gris)">Pièces jointes ajoutées : <b id="remCount">0</b></div>
     <label class="chk"><input type="checkbox" id="remCheck">
-      <span>Je confirme avoir joint l'ensemble des justificatifs <b>et mon RIB</b> nécessaires au remboursement.</span></label>
+      <span>J'ai bien noté que je dois joindre mes justificatifs <b>et mon RIB</b> en pièces jointes dans l'e-mail.</span></label>
     <div class="ftr"><button class="btn ghost" id="remCancel">Revenir</button>
       <button class="btn primary" id="remOk" disabled>Confirmer &amp; envoyer</button></div>
   </div>
@@ -245,7 +231,7 @@ function spin(on,txt){ge('spinTxt').textContent=txt||'Patientez…';ge('spin').c
 function todayFR(){return new Date().toLocaleDateString('fr-FR');}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function autoGrow(t){t.style.height='auto';t.style.height=t.scrollHeight+'px';}
-var JUST=[]; var ligneSeq=0;
+var ligneSeq=0;
 
 /* ===== SELECTS + ROUTAGE ===== */
 function fillSelect(id,arr){var s=ge(id);s.innerHTML='';arr.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o);});}
@@ -335,22 +321,6 @@ function recalc(){
   return {lignes:lignes,cv:cv,totTTC:totTTC};
 }
 
-/* ===== JUSTIFICATIFS ===== */
-function refreshJust(){
-  var L=ge('justList');L.innerHTML='';
-  JUST.forEach(function(j,i){var d=document.createElement('div');d.className='just-item';
-    var inner=j.type==='pdf'?'<div class="pdf-ic">📄</div>':'<img src="'+j.data+'">';
-    d.innerHTML=inner+'<div class="nm">'+esc(j.name)+'</div><button class="rm" data-rm="'+i+'">×</button>';
-    d.querySelector('[data-rm]').addEventListener('click',function(){JUST.splice(i,1);refreshJust();});L.appendChild(d);});
-  ge('justCount').textContent=JUST.length;if(ge('remCount'))ge('remCount').textContent=JUST.length;
-}
-function compressImage(file,cb){var r=new FileReader();r.onload=function(e){var img=new Image();img.onload=function(){
-  var max=1400,w=img.width,h=img.height;if(w>max||h>max){var k=Math.min(max/w,max/h);w=Math.round(w*k);h=Math.round(h*k);}
-  var c=document.createElement('canvas');c.width=w;c.height=h;var ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);ctx.drawImage(img,0,0,w,h);cb(c.toDataURL('image/jpeg',0.72));};img.src=e.target.result;};r.readAsDataURL(file);}
-function handleFiles(files){Array.prototype.forEach.call(files,function(f){
-  if(f.type==='application/pdf'){JUST.push({name:f.name,type:'pdf',data:null,file:f});refreshJust();}
-  else if(f.type.indexOf('image')===0){compressImage(f,function(d){JUST.push({name:f.name,type:'img',data:d,file:f});refreshJust();});}});}
-
 /* ===== SIGNATURES (2 pads) ===== */
 var SVGNS='http://www.w3.org/2000/svg';
 function pathEl(stroke){var p=document.createElementNS(SVGNS,'path');var d='M '+stroke[0][0]+' '+stroke[0][1];
@@ -432,9 +402,6 @@ function genPDF(cb){
       var pw=210,ph=297,m=8,iw=pw-2*m;var ih=canvas.height*iw/canvas.width;var img=canvas.toDataURL('image/jpeg',0.92);
       if(ih<=ph-2*m){pdf.addImage(img,'JPEG',m,m,iw,ih);}
       else{var remaining=ih,offset=0;while(remaining>0){pdf.addImage(img,'JPEG',m,m-offset,iw,ih);remaining-=(ph-2*m);offset+=(ph-2*m);if(remaining>0)pdf.addPage();}}
-      JUST.filter(function(j){return j.type==='img';}).forEach(function(j){
-        pdf.addPage();pdf.setFontSize(11);pdf.setTextColor(11,61,98);pdf.text('Justificatif : '+j.name,m,m+4);
-        try{var pr=pdf.getImageProperties(j.data);var availW=iw,availH=ph-(m+8)-m;var ratio=pr.width/pr.height;var w=availW,hh=w/ratio;if(hh>availH){hh=availH;w=hh*ratio;}var x=m+(availW-w)/2;pdf.addImage(j.data,'JPEG',x,m+8,w,hh);}catch(e){}});
       ge('printDoc').innerHTML='';spin(false);cb(pdf);
     }).catch(function(err){ge('printDoc').innerHTML='';spin(false);alert('Erreur PDF : '+err);});
   },60);
@@ -452,30 +419,27 @@ function doEnvoi(){
   genPDF(function(pdf){
     var blob=pdf.output('blob');var fname=pdfFileName();
     var noteFile=new File([blob],fname,{type:'application/pdf'});
-    var pdfJust=JUST.filter(function(j){return j.type==='pdf'&&j.file;}).map(function(j){return j.file;});
-    var files=[noteFile].concat(pdfJust);
-    // 1) Partage natif (PJ automatiques) si dispo
+    var files=[noteFile];
     var canFiles=false;try{canFiles=!!(navigator.canShare&&navigator.canShare({files:files}));}catch(e){canFiles=false;}
     if(canFiles&&navigator.share){
       navigator.share({files:files,title:sub,text:body})
         .then(function(){showSent(to,sub,body,blob,fname,true);})
-        .catch(function(){fallback(to,sub,body,blob,fname,pdfJust);});
+        .catch(function(){fallback(to,sub,body,blob,fname);});
     } else {
-      fallback(to,sub,body,blob,fname,pdfJust);
+      fallback(to,sub,body,blob,fname);
     }
   });
 }
-function fallback(to,sub,body,blob,fname,pdfJust){
+function fallback(to,sub,body,blob,fname){
   triggerDownload(blob,fname);
-  (pdfJust||[]).forEach(function(f){triggerDownload(f,f.name);});
   showSent(to,sub,body,blob,fname,false);
 }
 function showSent(to,sub,body,blob,fname,shared){
   ge('cardActions').innerHTML='';
   var info=document.createElement('div');info.className='note';
   info.innerHTML=shared
-    ? '✅ E-mail ouvert avec les pièces jointes incluses. Vérifiez le destinataire : <b>'+to.join(', ')+'</b>, puis envoyez.'
-    : '✅ PDF téléchargé. Cliquez ci-dessous pour ouvrir l\'e-mail (destinataire pré-rempli), puis joignez le PDF téléchargé.';
+    ? '✅ E-mail ouvert avec la note signée (PDF). Vérifiez le destinataire (<b>'+to.join(', ')+'</b>), <b>joignez vos justificatifs + RIB</b>, puis envoyez.'
+    : '✅ PDF de la note téléchargé. Cliquez ci-dessous pour ouvrir l\'e-mail (destinataire pré-rempli), puis <b>joignez le PDF + vos justificatifs + RIB</b> avant d\'envoyer.';
   ge('cardActions').appendChild(info);
   if(!shared){
     var b=document.createElement('button');b.className='btn primary';b.innerHTML='📧 Ouvrir l\'e-mail ('+to.join(', ')+')';
@@ -494,7 +458,7 @@ function openReminder(){
   if(!gv('nom')||!gv('prenom')){alert('Renseignez le nom et le prénom.');return;}
   if(!padC.has()){alert('Le collaborateur doit signer.');return;}
   if(!padD.has()){alert('Le directeur doit signer.');return;}
-  ge('remCount').textContent=JUST.length;ge('remCheck').checked=false;ge('remOk').disabled=true;ge('reminder').classList.add('on');
+  ge('remCheck').checked=false;ge('remOk').disabled=true;ge('reminder').classList.add('on');
 }
 
 /* ===== INIT ===== */
@@ -506,8 +470,6 @@ function init(){
   ge('addLigne').addEventListener('click',function(){addLigne();});
   ge('cv').addEventListener('input',recalc);
   ge('soc').addEventListener('change',updateRoute);
-  ge('justZone').addEventListener('click',function(){ge('justInput').click();});
-  ge('justInput').addEventListener('change',function(e){handleFiles(e.target.files);e.target.value='';});
   ge('btnEnvoi').addEventListener('click',openReminder);
   ge('remCheck').addEventListener('change',function(){ge('remOk').disabled=!this.checked;});
   ge('remCancel').addEventListener('click',function(){ge('reminder').classList.remove('on');});
