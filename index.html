@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Note de frais — Edgard Opticiens</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
@@ -117,10 +118,12 @@ textarea{resize:vertical;min-height:38px;line-height:1.35;overflow:hidden}
   <!-- IDENTITÉ -->
   <div class="card">
     <h2><span class="n">1</span> Identité &amp; période</h2>
-    <div class="grid g2">
-      <div class="field"><label>Société</label><select id="soc"></select></div>
+    <div class="field" style="margin-bottom:12px"><label>Société</label><select id="soc"></select></div>
+    <div class="grid g2" style="margin-bottom:12px">
       <div class="field"><label>Nom</label><input id="nom" placeholder="NOM"></div>
       <div class="field"><label>Prénom</label><input id="prenom" placeholder="Prénom"></div>
+    </div>
+    <div class="grid g2">
       <div class="field"><label>Mois concerné</label><select id="mois"></select></div>
       <div class="field"><label>Année</label><select id="annee"></select></div>
     </div>
@@ -184,6 +187,14 @@ textarea{resize:vertical;min-height:38px;line-height:1.35;overflow:hidden}
     <div class="note" id="sendHint">L'e-mail s'ouvre avec la note signée (PDF). Pensez à y joindre vos justificatifs et votre RIB avant d'envoyer.</div>
   </div>
 
+  <!-- TÉLÉCHARGEMENT (destinataire du lien) -->
+  <div class="card" id="cardDownload" style="display:none">
+    <h2><span class="n">⬇️</span> Note de frais reçue</h2>
+    <div class="note" id="dlName"></div>
+    <button class="btn primary" id="btnDl">⬇️ Télécharger la note de frais (PDF)</button>
+    <div id="dlPreview" style="margin-top:12px;border:1px solid var(--bord);border-radius:10px;overflow:auto"></div>
+  </div>
+
   <div style="text-align:center;font-size:11px;color:#9aa3ae;margin:16px 0">Edgard Opticiens — outil interne · 100&nbsp;% statique</div>
 </div>
 
@@ -218,7 +229,7 @@ var TYPES=[
   {k:"petits",l:"Petits matériels"},{k:"divers",l:"Divers"},{k:"hotelTrain",l:"Hôtel + Train"}];
 function typeLabel(k){for(var i=0;i<TYPES.length;i++)if(TYPES[i].k===k)return TYPES[i].l;return k;}
 var SOC_EDGARD_DEV="SAS EDGARD DEVELOPPEMENT";
-var EMAIL_DEV=["d.libre@groupe-edgard.com","l.costanobre@groupe-edgard.com"]; /* Déborah + Ludivine */
+var EMAIL_DEV=["l.costanobre@groupe-edgard.com","d.libre@groupe-edgard.com"]; /* Ludivine + Déborah */
 var EMAIL_COMPTA=["compta@groupe-edgard.com"]; /* Service Compta */
 
 /* ===== HELPERS ===== */
@@ -378,10 +389,14 @@ function docHTML(p){
   var th='border:1px solid #d8dee6;background:#eef2f6;color:#0b3d62;padding:6px 8px;font-size:11px;';
   return ''+
   '<div style="padding:18px;font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#1c2530;font-size:12px;background:#fff">'+
-    '<div style="display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #0b3d62;padding-bottom:8px;margin-bottom:10px">'+
-      '<div><div style="font-size:18px;font-weight:800;color:#0b3d62">NOTE DE FRAIS</div><div style="font-size:12px;color:#5b6470">Edgard Opticiens · Générale d\'Optique</div></div>'+
-      '<div style="text-align:right;font-size:12px"><b>'+esc(p.soc||'')+'</b><br>'+esc(p.mois||'')+' '+esc(p.annee||'')+'</div></div>'+
-    '<div style="margin-bottom:8px;font-size:13px"><b>'+esc(p.prenom||'')+' '+esc(p.nom||'')+'</b></div>'+
+    '<div style="border-bottom:2px solid #0b3d62;padding-bottom:8px;margin-bottom:12px">'+
+      '<div style="font-size:18px;font-weight:800;color:#0b3d62">NOTE DE FRAIS</div>'+
+      '<div style="font-size:12px;color:#5b6470">Edgard Opticiens · Générale d\'Optique</div></div>'+
+    '<div style="margin-bottom:12px;font-size:13px;line-height:1.7">'+
+      '<div><b>Société :</b> '+esc(p.soc||'')+'</div>'+
+      '<div><b>Nom et prénom :</b> '+esc(p.nom||'')+' '+esc(p.prenom||'')+'</div>'+
+      '<div><b>Mois et année :</b> '+esc(p.mois||'')+' '+esc(p.annee||'')+'</div>'+
+    '</div>'+
     '<table style="width:100%;border-collapse:collapse">'+
       '<tr><th style="'+th+'text-align:left">Date</th><th style="'+th+'text-align:left">Type</th><th style="'+th+'text-align:left">Motif</th>'+
       '<th style="'+th+'text-align:right">HT</th><th style="'+th+'text-align:right">TVA</th><th style="'+th+'text-align:right">TTC</th></tr>'+rowsTbl+'</table>'+
@@ -391,11 +406,11 @@ function docHTML(p){
       '<div style="border:1px solid #d8dee6;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:#5b6470;font-weight:600;margin-bottom:4px">Directeur</div>'+sigSVGString(p.sigD)+'<div style="font-size:10px;color:#9aa3ae">'+esc(p.ts||'')+'</div></div>'+
     '</div></div>';
 }
-function pdfFileName(){return 'NDF_'+(gv('soc')||'').replace(/\s+/g,'')+'_'+gv('nom')+'_'+gv('prenom')+'_'+gv('mois')+gv('annee')+'.pdf';}
+function fileNameFor(s){return 'NDF_'+(s.soc||'').replace(/\s+/g,'')+'_'+(s.nom||'')+'_'+(s.prenom||'')+'_'+(s.mois||'')+(s.annee||'')+'.pdf';}
 
-function genPDF(cb){
+function genPDF(state,cb){
   spin(true,'Génération du PDF…');
-  ge('printDoc').innerHTML=docHTML(getState());
+  ge('printDoc').innerHTML=docHTML(state);
   setTimeout(function(){
     html2canvas(ge('printDoc'),{scale:2,backgroundColor:'#ffffff',useCORS:true}).then(function(canvas){
       var jsPDF=window.jspdf.jsPDF;var pdf=new jsPDF('p','mm','a4');
@@ -411,46 +426,61 @@ function genPDF(cb){
 function mailtoStr(to,sub,body){return 'mailto:'+to.join(',')+'?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(body);}
 function triggerDownload(blob,name){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},1500);}
 
+/* lien court (LZString + is.gd/TinyURL) */
+function encodePayload(p){return LZString.compressToEncodedURIComponent(JSON.stringify(p));}
+function decodePayload(s){try{return JSON.parse(LZString.decompressFromEncodedURIComponent(s));}catch(e){return null;}}
+function makeLink(state){return location.origin+location.pathname+'#dl='+encodePayload(state);}
+function shortenURL(longURL,cb){
+  fetch('https://is.gd/create.php?format=simple&url='+encodeURIComponent(longURL))
+    .then(function(r){return r.text();}).then(function(t){if(t&&t.indexOf('http')===0)cb(t.trim());else throw 0;})
+    .catch(function(){fetch('https://tinyurl.com/api-create.php?url='+encodeURIComponent(longURL))
+      .then(function(r){return r.text();}).then(function(t){cb(t&&t.indexOf('http')===0?t.trim():longURL);})
+      .catch(function(){cb(longURL);});});
+}
+
 function doEnvoi(){
   var to=recipients();
-  var sub='[NDF] '+gv('prenom')+' '+gv('nom')+' — '+gv('soc')+' — '+gv('mois')+' '+gv('annee');
-  var dest=to.join(', ');
-  var body='Bonjour,\n\nVeuillez trouver la note de frais signee de '+gv('prenom')+' '+gv('nom')+' ('+gv('soc')+'), accompagnee des justificatifs et du RIB.\n\nDestinataire : '+dest+'\n\nCordialement.';
-  genPDF(function(pdf){
-    var blob=pdf.output('blob');var fname=pdfFileName();
-    var noteFile=new File([blob],fname,{type:'application/pdf'});
-    var files=[noteFile];
-    var canFiles=false;try{canFiles=!!(navigator.canShare&&navigator.canShare({files:files}));}catch(e){canFiles=false;}
-    if(canFiles&&navigator.share){
-      navigator.share({files:files,title:sub,text:body})
-        .then(function(){showSent(to,sub,body,blob,fname,true);})
-        .catch(function(){fallback(to,sub,body,blob,fname);});
-    } else {
-      fallback(to,sub,body,blob,fname);
-    }
+  var state=getState();
+  var sub='[NDF] '+state.prenom+' '+state.nom+' — '+state.soc+' — '+state.mois+' '+state.annee;
+  spin(true,'Création du lien…');
+  shortenURL(makeLink(state),function(short){
+    spin(false);
+    var body='Bonjour,\n\nVeuillez trouver la note de frais signee de '+state.prenom+' '+state.nom+' ('+state.soc+').\n\n'+
+      'Telecharger la note de frais (PDF) ici :\n'+short+'\n\n'+
+      'Les justificatifs et le RIB sont joints en pieces jointes a ce mail.\n\nCordialement.';
+    showSent(to,sub,body,short,state);
   });
 }
-function fallback(to,sub,body,blob,fname){
-  triggerDownload(blob,fname);
-  showSent(to,sub,body,blob,fname,false);
-}
-function showSent(to,sub,body,blob,fname,shared){
+function showSent(to,sub,body,short,state){
   ge('cardActions').innerHTML='';
   var info=document.createElement('div');info.className='note';
-  info.innerHTML=shared
-    ? '✅ E-mail ouvert avec la note signée (PDF). Vérifiez le destinataire (<b>'+to.join(', ')+'</b>), <b>joignez vos justificatifs + RIB</b>, puis envoyez.'
-    : '✅ PDF de la note téléchargé. Cliquez ci-dessous pour ouvrir l\'e-mail (destinataire pré-rempli), puis <b>joignez le PDF + vos justificatifs + RIB</b> avant d\'envoyer.';
+  info.innerHTML='✅ Lien prêt. Cliquez pour ouvrir l\'e-mail (destinataire : <b>'+to.join(', ')+'</b>), puis <b>joignez vos justificatifs + RIB</b> avant d\'envoyer. La compta téléchargera la note via le lien.';
   ge('cardActions').appendChild(info);
-  if(!shared){
-    var b=document.createElement('button');b.className='btn primary';b.innerHTML='📧 Ouvrir l\'e-mail ('+to.join(', ')+')';
-    b.addEventListener('click',function(){window.location.href=mailtoStr(to,sub,body);});
-    ge('cardActions').appendChild(b);
-    var dl=document.createElement('button');dl.className='btn ghost';dl.innerHTML='⬇️ Re-télécharger le PDF';
-    dl.addEventListener('click',function(){triggerDownload(blob,fname);});ge('cardActions').appendChild(dl);
-  }
+  var b=document.createElement('button');b.className='btn primary';b.innerHTML='📧 Ouvrir l\'e-mail';
+  b.addEventListener('click',function(){window.location.href=mailtoStr(to,sub,body);});
+  ge('cardActions').appendChild(b);
+  var dl=document.createElement('button');dl.className='btn ghost';dl.innerHTML='⬇️ Télécharger le PDF de la note';
+  dl.addEventListener('click',function(){genPDF(state,function(pdf){pdf.save(fileNameFor(state));});});
+  ge('cardActions').appendChild(dl);
+  var box=document.createElement('div');box.className='linkbox';
+  box.innerHTML='<b>Lien de la note</b><div style="font-size:12px;color:var(--gris);margin:4px 0">Si l\'e-mail ne s\'ouvre pas, copiez ce lien dans votre message :</div>'+
+    '<input id="linkOut" readonly value="'+short+'"><button class="btn ghost" id="copyLink" style="margin-top:4px">Copier le lien</button>';
+  ge('cardActions').appendChild(box);
+  ge('linkOut').addEventListener('click',function(){this.select();});
+  ge('copyLink').addEventListener('click',function(){ge('linkOut').select();document.execCommand('copy');this.textContent='Copié ✅';});
   var again=document.createElement('button');again.className='btn ghost';again.textContent='↩︎ Nouvelle note de frais';
-  again.addEventListener('click',function(){location.reload();});ge('cardActions').appendChild(again);
+  again.addEventListener('click',function(){location.href=location.origin+location.pathname;});
+  ge('cardActions').appendChild(again);
   ge('cardActions').scrollIntoView({behavior:'smooth'});
+}
+
+/* ===== MODE TÉLÉCHARGEMENT (destinataire du lien) ===== */
+function enterDownloadMode(state){
+  document.querySelectorAll('.wrap > .card').forEach(function(c){c.style.display='none';});
+  var card=ge('cardDownload');card.style.display='block';
+  ge('dlName').textContent=(state.prenom||'')+' '+(state.nom||'')+' — '+(state.soc||'')+' — '+(state.mois||'')+' '+(state.annee||'');
+  ge('dlPreview').innerHTML=docHTML(state);
+  ge('btnDl').addEventListener('click',function(){genPDF(state,function(pdf){pdf.save(fileNameFor(state));});});
 }
 
 /* ===== MODALE ===== */
@@ -464,6 +494,11 @@ function openReminder(){
 /* ===== INIT ===== */
 function init(){
   initSelects();
+  var h=location.hash||'';
+  if(h.indexOf('#dl=')===0){
+    var state=decodePayload(h.slice(4));
+    if(state){enterDownloadMode(state);return;}
+  }
   padC=createSigPad('sigAreaC','hintC');padD=createSigPad('sigAreaD','hintD');
   ge('clrC').addEventListener('click',function(){padC.build();});
   ge('clrD').addEventListener('click',function(){padD.build();});
