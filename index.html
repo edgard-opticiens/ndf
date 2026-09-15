@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Note de frais — Edgard Opticiens</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
@@ -66,21 +65,25 @@ textarea{resize:vertical;min-height:38px;line-height:1.35;overflow:hidden}
 
 .just-zone{border:2px dashed var(--bleu2);border-radius:12px;padding:16px;text-align:center;background:#f6fafd;cursor:pointer}
 .just-zone:hover{background:#eef6fc}.just-zone .big{font-size:28px}
-.just-list{margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:10px}
-.just-item{border:1px solid var(--bord);border-radius:9px;padding:6px;background:#fff;font-size:11px;position:relative;text-align:center}
-.just-item img{width:100%;height:72px;object-fit:cover;border-radius:6px;background:#f0f0f0}
-.just-item .pdf-ic{height:72px;display:flex;align-items:center;justify-content:center;font-size:28px;background:#fbe9e7;border-radius:6px;color:var(--rouge)}
+.just-list{margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.just-item{border:1px solid var(--bord);border-radius:9px;padding:8px;background:#fff;font-size:11px;position:relative;text-align:center}
+.just-item .ic{height:44px;display:flex;align-items:center;justify-content:center;font-size:24px}
+.just-item.up .ic{color:var(--accent)}
 .just-item .nm{margin-top:4px;word-break:break-word;line-height:1.2;max-height:28px;overflow:hidden}
 .just-item .rm{position:absolute;top:-7px;right:-7px;background:var(--rouge);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:14px;cursor:pointer;line-height:1}
-.just-count{display:inline-block;background:var(--accent);color:#fff;border-radius:20px;padding:2px 11px;font-size:12px;font-weight:700;margin-left:6px}
+.just-item .st{font-size:10px;color:var(--accent);font-weight:700;margin-top:2px}
 
-.sig-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-@media(max-width:640px){.sig-grid{grid-template-columns:1fr}}
-.sig-pad .who{font-size:12.5px;color:var(--bleu);margin-bottom:5px;font-weight:700}
+.sig-pad .who{font-size:13px;color:var(--bleu);margin-bottom:5px;font-weight:700}
 .sig-area{border:1px solid var(--bord);border-radius:10px;background:#fff;height:155px;position:relative;touch-action:none;overflow:hidden;background-color:#fff}
 .sig-area svg{display:block;width:100%;height:100%;background-color:#fff}
 .sig-hint{position:absolute;top:50%;left:0;right:0;transform:translateY(-50%);text-align:center;color:#b8c0ca;font-size:13px;pointer-events:none}
 .sig-clr{margin-top:6px;background:#fff;color:var(--bleu);border:1px solid var(--bord);border-radius:9px;padding:7px;width:100%;font-weight:600;font-size:13px;cursor:pointer}
+
+.prev-sig{border:1px solid var(--bord);border-radius:9px;padding:8px;background:#fafbfc;margin-bottom:10px}
+.prev-sig .who{font-size:11px;color:var(--gris);font-weight:700;margin-bottom:4px}
+
+.chk-row{display:flex;gap:10px;align-items:flex-start;background:var(--jaune);border:1px solid var(--jaune-b);border-radius:10px;padding:12px;margin:10px 0;font-size:13.5px}
+.chk-row input{width:20px;height:20px;flex:0 0 auto;margin-top:1px}
 
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:none;border-radius:11px;padding:14px 18px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;margin-bottom:8px}
 .btn.primary{background:linear-gradient(135deg,var(--bleu),var(--bleu2));color:#fff}
@@ -88,23 +91,16 @@ textarea{resize:vertical;min-height:38px;line-height:1.35;overflow:hidden}
 .btn.ghost{background:#fff;color:var(--bleu);border:1px solid var(--bord)}
 .btn:active{transform:translateY(1px)}.btn:disabled{opacity:.5;cursor:not-allowed}
 
-.overlay{position:fixed;inset:0;background:rgba(15,25,40,.55);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
-.overlay.on{display:flex}
-.modal{background:#fff;border-radius:16px;max-width:460px;width:100%;padding:22px;box-shadow:0 12px 40px rgba(0,0,0,.3);max-height:90vh;overflow:auto}
-.modal h3{margin:0 0 6px;color:var(--bleu);font-size:18px}
-.modal .chk{display:flex;gap:10px;align-items:flex-start;background:var(--jaune);border:1px solid var(--jaune-b);border-radius:10px;padding:12px;margin:14px 0;font-size:13.5px}
-.modal .chk input{width:20px;height:20px;flex:0 0 auto;margin-top:1px}
-.modal ul{margin:8px 0;padding-left:20px;font-size:13.5px;color:var(--gris)}
-.modal .ftr{display:flex;gap:10px;margin-top:6px}.modal .ftr .btn{flex:1;padding:11px;margin:0}
-
 .note{font-size:12.5px;color:var(--gris);background:#f4f7fa;border-left:3px solid var(--bleu2);padding:9px 12px;border-radius:0 8px 8px 0;margin:0 0 12px}
+.err{font-size:12.5px;color:var(--rouge);background:#fbe9e7;border-left:3px solid var(--rouge);padding:9px 12px;border-radius:0 8px 8px 0;margin:0 0 12px;display:none}
 .spin{position:fixed;inset:0;background:rgba(255,255,255,.85);display:none;align-items:center;justify-content:center;z-index:60;flex-direction:column;gap:14px}
 .spin.on{display:flex}.spin .s{width:42px;height:42px;border:4px solid #d8e2ec;border-top-color:var(--bleu);border-radius:50%;animation:r .8s linear infinite}
 @keyframes r{to{transform:rotate(360deg)}}
-.linkbox{background:#eef6f2;border:1px solid #cfe6dc;border-radius:10px;padding:12px;margin-top:4px}
-.linkbox input{font-size:12px;margin:6px 0}
 .hidden{display:none!important}
 #printDoc{position:absolute;left:-10000px;top:0;width:780px;background:#fff}
+.okbox{text-align:center;padding:40px 20px}
+.okbox .big{font-size:44px}
+.readonly-field{background:#f4f7fa;border:1px solid var(--bord);border-radius:9px;padding:9px 11px;font-size:14px;color:#1c2530}
 </style>
 </head>
 <body>
@@ -115,112 +111,150 @@ textarea{resize:vertical;min-height:38px;line-height:1.35;overflow:hidden}
     <div class="sub">Edgard Opticiens · Générale d'Optique</div>
   </header>
 
-  <!-- IDENTITÉ -->
-  <div class="card">
-    <h2><span class="n">1</span> Identité &amp; période</h2>
-    <div class="field" style="margin-bottom:12px"><label>Société</label><select id="soc"></select></div>
-    <div class="grid g2" style="margin-bottom:12px">
-      <div class="field"><label>Nom</label><input id="nom" placeholder="NOM"></div>
-      <div class="field"><label>Prénom</label><input id="prenom" placeholder="Prénom"></div>
-    </div>
-    <div class="grid g2">
-      <div class="field"><label>Mois concerné</label><select id="mois"></select></div>
-      <div class="field"><label>Année</label><select id="annee"></select></div>
-    </div>
-    <div class="routebox" id="routebox"></div>
+  <div class="spin" id="spin"><div class="s"></div><div id="spinTxt" style="font-size:14px;color:var(--bleu);font-weight:600">Patientez…</div></div>
+
+  <!-- ===== MODE CHARGEMENT ===== -->
+  <div class="card" id="cardLoading">
+    <div class="note">Chargement…</div>
   </div>
 
-  <!-- DÉPENSES -->
-  <div class="card">
-    <h2><span class="n">2</span> Dépenses</h2>
-    <div class="note">Pour chaque dépense : choisissez le <b>type</b>, le motif, puis le <b>montant HT</b> et la <b>TVA</b>
-      (le TTC se calcule tout seul). Pour un trajet véhicule, choisissez « Indemnités kilométriques » et saisissez les km.</div>
-    <div id="lignes"></div>
-    <button class="addbtn" id="addLigne">＋ Ajouter une dépense</button>
-  </div>
+  <!-- ===== MODE FORMULAIRE (nouvelle note) ===== -->
+  <div id="modeNouveau" class="hidden">
 
-  <!-- VÉHICULE -->
-  <div class="card">
-    <h2><span class="n">3</span> Véhicule (indemnités kilométriques)</h2>
-    <div class="grid g2">
-      <div class="field"><label>Puissance fiscale du véhicule (CV)</label>
-        <input id="cv" type="number" min="1" max="15" step="1" value="3" inputmode="numeric">
-        <div class="lock">Plafonné à 9 CV : au-delà, le taux de 9 CV s'applique.</div></div>
-      <div class="field"><label>Récapitulatif kilométrique</label><div class="bareme-box" id="ikSummary">—</div></div>
+    <div class="card">
+      <h2><span class="n">1</span> Identité &amp; période</h2>
+      <div class="field" style="margin-bottom:12px"><label>Société</label><select id="soc"></select></div>
+      <div class="grid g2" style="margin-bottom:12px">
+        <div class="field"><label>Nom</label><input id="nom" placeholder="NOM"></div>
+        <div class="field"><label>Prénom</label><input id="prenom" placeholder="Prénom"></div>
+      </div>
+      <div class="grid g2" style="margin-bottom:12px">
+        <div class="field"><label>Mois concerné</label><select id="mois"></select></div>
+        <div class="field"><label>Année</label><select id="annee"></select></div>
+      </div>
+      <div class="routebox" id="routebox"></div>
+      <label class="chk-row"><input type="checkbox" id="estDirecteur">
+        <span>Je suis moi-même le <b>directeur / la directrice</b> de ce magasin — ma demande passera directement à l'étape suivante, sans repasser par moi-même.</span></label>
     </div>
-    <div class="bareme-box" style="margin-top:12px">
-      <b>Barème fiscal 2026</b> (mis à jour par les RH — non modifiable)
-      <table>
-        <tr><th>CV</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9 et +</th></tr>
-        <tr><td>€/km</td><td>0,329</td><td>0,406</td><td>0,436</td><td>0,465</td><td>0,497</td><td>0,497</td><td>0,497</td></tr>
-      </table>
+
+    <div class="card">
+      <h2><span class="n">2</span> Dépenses</h2>
+      <div class="note">Pour chaque dépense : choisissez le <b>type</b>, le motif, puis le <b>montant HT</b> et la <b>TVA</b>
+        (le TTC se calcule tout seul). Pour un trajet véhicule, choisissez « Indemnités kilométriques » et saisissez les km.</div>
+      <div id="lignes"></div>
+      <button class="addbtn" id="addLigne">＋ Ajouter une dépense</button>
     </div>
-  </div>
 
-  <!-- RÉCAP -->
-  <div class="card">
-    <h2><span class="n">4</span> Récapitulatif</h2>
-    <div class="totaux" id="totaux"></div>
-  </div>
+    <div class="card">
+      <h2><span class="n">3</span> Véhicule (indemnités kilométriques)</h2>
+      <div class="grid g2">
+        <div class="field"><label>Puissance fiscale du véhicule (CV)</label>
+          <input id="cv" type="number" min="1" max="15" step="1" value="3" inputmode="numeric">
+          <div class="lock">Plafonné à 9 CV : au-delà, le taux de 9 CV s'applique.</div></div>
+        <div class="field"><label>Récapitulatif kilométrique</label><div class="bareme-box" id="ikSummary">—</div></div>
+      </div>
+      <div class="bareme-box" style="margin-top:12px">
+        <b>Barème fiscal 2026</b> (mis à jour par les RH — non modifiable)
+        <table>
+          <tr><th>CV</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9 et +</th></tr>
+          <tr><td>€/km</td><td>0,329</td><td>0,406</td><td>0,436</td><td>0,465</td><td>0,497</td><td>0,497</td><td>0,497</td></tr>
+        </table>
+      </div>
+    </div>
 
-  <!-- SIGNATURES (double, même écran) -->
-  <div class="card">
-    <h2><span class="n">5</span> Signatures</h2>
-    <div class="note">Le <b>collaborateur</b> et le <b>directeur</b> signent ci-dessous, puis vous envoyez.</div>
-    <div class="sig-grid">
+    <div class="card">
+      <h2><span class="n">4</span> Récapitulatif</h2>
+      <div class="totaux" id="totaux"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="n">5</span> Justificatifs &amp; RIB</h2>
+      <div class="note">Joignez vos tickets, factures et votre RIB — ils seront transmis automatiquement à chaque étape, pas besoin de les envoyer vous-même.</div>
+      <div class="just-zone" id="justZone">
+        <div class="big">📎</div>
+        <div>Cliquez pour ajouter des fichiers</div>
+        <div style="font-size:11.5px;color:var(--gris);margin-top:4px">PDF, JPG ou PNG — 15 Mo max par fichier</div>
+        <input type="file" id="justInput" multiple accept=".pdf,.jpg,.jpeg,.png" style="display:none">
+      </div>
+      <div class="just-list" id="justList"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="n">6</span> Ma signature</h2>
+      <div class="note">Signez ci-dessous puis envoyez — la note partira automatiquement au bon destinataire selon votre société.</div>
       <div class="sig-pad">
         <div class="who">Collaborateur</div>
         <div class="sig-area" id="sigAreaC"><div class="sig-hint" id="hintC">Signez ici</div></div>
         <button class="sig-clr" id="clrC">Effacer</button>
       </div>
+    </div>
+
+    <div class="card">
+      <div class="err" id="errNouveau"></div>
+      <button class="btn primary" id="btnEnvoi">✅ Signer &amp; envoyer la note de frais</button>
+    </div>
+
+  </div>
+
+  <!-- ===== MODE ETAPE (lien reçu) ===== -->
+  <div id="modeEtape" class="hidden">
+    <div class="card">
+      <h2><span class="n">👤</span> Note de frais à examiner</h2>
+      <div id="etapeIdentite"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="n">📋</span> Dépenses déclarées</h2>
+      <div id="etapeApercu"></div>
+    </div>
+
+    <div class="card">
+      <h2><span class="n">✍️</span> Signatures précédentes</h2>
+      <div id="etapeSigsPrec"></div>
+    </div>
+
+    <div class="card" id="cardSignerEtape">
+      <h2><span class="n">✍️</span> Votre signature (<span id="etapeRoleLabel"></span>)</h2>
       <div class="sig-pad">
-        <div class="who">Directeur</div>
-        <div class="sig-area" id="sigAreaD"><div class="sig-hint" id="hintD">Signez ici</div></div>
-        <button class="sig-clr" id="clrD">Effacer</button>
+        <div class="sig-area" id="sigAreaX"><div class="sig-hint" id="hintX">Signez ici</div></div>
+        <button class="sig-clr" id="clrX">Effacer</button>
       </div>
+      <div class="err" id="errEtape"></div>
+      <button class="btn primary" id="btnValiderEtape" style="margin-top:10px">✅ Signer &amp; transmettre</button>
+    </div>
+
+    <div class="card hidden" id="cardDejaFait">
+      <div class="note">Cette note de frais a déjà été traitée à cette étape.</div>
     </div>
   </div>
 
-  <!-- ACTIONS -->
-  <div class="card" id="cardActions">
-    <button class="btn primary" id="btnEnvoi">📧 Signer &amp; envoyer la note de frais</button>
-    <div class="note" id="sendHint">L'e-mail s'ouvre avec la note signée (PDF). Pensez à y joindre vos justificatifs et votre RIB avant d'envoyer.</div>
+  <!-- ===== CONFIRMATION ===== -->
+  <div id="modeOk" class="hidden">
+    <div class="card okbox">
+      <div class="big">✅</div>
+      <h2 style="color:var(--bleu)">Envoyé</h2>
+      <p id="okMsg" style="color:var(--gris)"></p>
+    </div>
   </div>
 
-  <!-- TÉLÉCHARGEMENT (destinataire du lien) -->
-  <div class="card" id="cardDownload" style="display:none">
-    <h2><span class="n">⬇️</span> Note de frais reçue</h2>
-    <div class="note" id="dlName"></div>
-    <button class="btn primary" id="btnDl">⬇️ Télécharger la note de frais (PDF)</button>
-    <div id="dlPreview" style="margin-top:12px;border:1px solid var(--bord);border-radius:10px;overflow:auto"></div>
-  </div>
-
-  <div style="text-align:center;font-size:11px;color:#9aa3ae;margin:16px 0">Edgard Opticiens — outil interne · 100&nbsp;% statique</div>
+  <div style="text-align:center;font-size:11px;color:#9aa3ae;margin:16px 0">Edgard Opticiens — outil interne</div>
 </div>
 
 <div id="printDoc"></div>
 
-<!-- Modale rappel -->
-<div class="overlay" id="reminder">
-  <div class="modal">
-    <h3>⚠️ Avant d'envoyer</h3>
-    <p style="margin:6px 0;font-size:14px">⚠️ N'oubliez pas de <b>joindre vous-même dans l'e-mail</b> :</p>
-    <ul><li>Tous les justificatifs (tickets, reçus, factures)</li><li><b>Votre RIB</b></li></ul>
-    <label class="chk"><input type="checkbox" id="remCheck">
-      <span>J'ai bien noté que je dois joindre mes justificatifs <b>et mon RIB</b> en pièces jointes dans l'e-mail.</span></label>
-    <div class="ftr"><button class="btn ghost" id="remCancel">Revenir</button>
-      <button class="btn primary" id="remOk" disabled>Confirmer &amp; envoyer</button></div>
-  </div>
-</div>
-
-<div class="spin" id="spin"><div class="s"></div><div id="spinTxt" style="font-size:14px;color:var(--bleu);font-weight:600">Patientez…</div></div>
-
 <script>
+/* ===== CONFIG BACKEND ===== */
+var URL_ETAPE  = 'https://edgard-opticiens.app.n8n.cloud/webhook/ndf-etape';
+var URL_GET    = 'https://edgard-opticiens.app.n8n.cloud/webhook/ndf-get';
+var URL_UPLOAD = 'https://edgard-opticiens.app.n8n.cloud/webhook/ndf-upload';
+var MAX_SIZE = 15 * 1024 * 1024;
+
 /* ===== RÉFÉRENCES ===== */
 var SOCIETES=["SAS EDGARD DEVELOPPEMENT","SAS ANGO","SAS BORDO","SAS BIARRO","SAS CAENPO","SAS GIRO",
 "SAS HAVRO","SAS JISAM","SAS LYONO","SAS MANSO","SAS MARSEILLO","SAS NANCEO","SAS NICEO","SAS NANTO",
 "SAS ORLO","SAS REIMO","SAS STRABO","SAS TURO","SARL CHATO","SARL CHEMILLO","SARL CHOLO","SARL DUNES",
 "SARL ECUME","SAS FORMIO","SARL MARAIS","SARL MUDO","SARL NIORTO"];
+var GDO_MARKERS=["CHATO","CHEMILLO","CHOLO","DUNES","ECUME","FORMIO","MARAIS","MUDO","NIORTO"];
 var MOIS=["JANVIER","FÉVRIER","MARS","AVRIL","MAI","JUIN","JUILLET","AOÛT","SEPTEMBRE","OCTOBRE","NOVEMBRE","DÉCEMBRE"];
 var BAREME_2026={3:0.329,4:0.406,5:0.436,6:0.465,7:0.497,8:0.497,9:0.497};
 var TYPES=[
@@ -228,9 +262,7 @@ var TYPES=[
   {k:"repas",l:"Repas"},{k:"postaux",l:"Frais postaux"},{k:"fournitures",l:"Fournitures administratives"},
   {k:"petits",l:"Petits matériels"},{k:"divers",l:"Divers"},{k:"hotelTrain",l:"Hôtel + Train"}];
 function typeLabel(k){for(var i=0;i<TYPES.length;i++)if(TYPES[i].k===k)return TYPES[i].l;return k;}
-var SOC_EDGARD_DEV="SAS EDGARD DEVELOPPEMENT";
-var EMAIL_DEV=["l.costanobre@groupe-edgard.com","d.libre@groupe-edgard.com"]; /* Ludivine + Déborah */
-var EMAIL_COMPTA=["compta@groupe-edgard.com"]; /* Service Compta */
+var ROLE_LABELS={directeur:'Directeur',reseau:'Directeur réseau',deruy:'Julien DERUY'};
 
 /* ===== HELPERS ===== */
 function ge(id){return document.getElementById(id)}
@@ -242,16 +274,16 @@ function spin(on,txt){ge('spinTxt').textContent=txt||'Patientez…';ge('spin').c
 function todayFR(){return new Date().toLocaleDateString('fr-FR');}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function autoGrow(t){t.style.height='auto';t.style.height=t.scrollHeight+'px';}
+function isGdo(soc){var s=(soc||'').toUpperCase();for(var i=0;i<GDO_MARKERS.length;i++)if(s.indexOf(GDO_MARKERS[i])!==-1)return true;return false;}
 var ligneSeq=0;
 
-/* ===== SELECTS + ROUTAGE ===== */
+/* ===== SELECTS ===== */
 function fillSelect(id,arr){var s=ge(id);s.innerHTML='';arr.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o);});}
-function recipients(){return gv('soc')===SOC_EDGARD_DEV?EMAIL_DEV.slice():EMAIL_COMPTA.slice();}
 function updateRoute(){
-  var dev=gv('soc')===SOC_EDGARD_DEV;
-  ge('routebox').innerHTML = dev
-    ? '➜ Envoi à <b>Déborah (d.libre)</b> et <b>Ludivine (l.costanobre)</b>'
-    : '➜ Envoi au <b>Service Comptabilité (compta@groupe-edgard.com)</b>';
+  var gdo=isGdo(gv('soc'));
+  ge('routebox').innerHTML = gdo
+    ? '➜ Circuit : <b>Directeur du magasin</b> → <b>Directeur réseau</b> → <b>Julien DERUY</b> → <b>Comptabilité</b>'
+    : '➜ Circuit : <b>Directeur du magasin</b> → <b>Julien DERUY</b> → <b>Comptabilité</b>';
 }
 function initSelects(){
   fillSelect('soc',SOCIETES);fillSelect('mois',MOIS);
@@ -332,7 +364,41 @@ function recalc(){
   return {lignes:lignes,cv:cv,totTTC:totTTC};
 }
 
-/* ===== SIGNATURES (2 pads) ===== */
+/* ===== JUSTIFICATIFS ===== */
+var justificatifs=[]; // {nomFichier, webUrl, statut:'ok'|'envoi'}
+function dossierKey(){return (gv('nom')||'X').replace(/\s+/g,'')+'_'+(gv('prenom')||'X').replace(/\s+/g,'')+'_'+Date.now();}
+var DOSSIER_ID = null;
+function fileToBase64(file){return new Promise(function(resolve,reject){var r=new FileReader();r.onload=function(){resolve(r.result.split(',')[1]);};r.onerror=reject;r.readAsDataURL(file);});}
+function renderJustList(){
+  var box=ge('justList');box.innerHTML='';
+  justificatifs.forEach(function(j,idx){
+    var div=document.createElement('div');div.className='just-item'+(j.statut==='ok'?' up':'');
+    var icon=/\.pdf$/i.test(j.nomFichier)?'📄':'🖼️';
+    div.innerHTML='<div class="ic">'+icon+'</div><div class="nm">'+esc(j.nomFichier)+'</div>'+
+      '<div class="st">'+(j.statut==='ok'?'✅ Envoyé':'⏳ Envoi…')+'</div>'+
+      '<button class="rm" data-idx="'+idx+'">×</button>';
+    box.appendChild(div);
+  });
+  box.querySelectorAll('.rm').forEach(function(btn){
+    btn.addEventListener('click',function(){justificatifs.splice(+this.dataset.idx,1);renderJustList();});
+  });
+}
+function handleJustFiles(files){
+  if(!DOSSIER_ID) DOSSIER_ID=dossierKey();
+  Array.prototype.forEach.call(files,function(file){
+    if(file.size>MAX_SIZE){alert('Le fichier "'+file.name+'" dépasse 15 Mo.');return;}
+    var entry={nomFichier:file.name,webUrl:null,statut:'envoi'};
+    justificatifs.push(entry);renderJustList();
+    fileToBase64(file).then(function(b64){
+      return fetch(URL_UPLOAD,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contenu_base64:b64,nom_fichier:file.name,type_mime:file.type||'application/octet-stream',dossier:DOSSIER_ID})});
+    }).then(function(r){return r.json();}).then(function(res){
+      entry.webUrl=res.webUrl;entry.statut='ok';renderJustList();
+    }).catch(function(){entry.statut='erreur';renderJustList();});
+  });
+}
+
+/* ===== SIGNATURES ===== */
 var SVGNS='http://www.w3.org/2000/svg';
 function pathEl(stroke){var p=document.createElementNS(SVGNS,'path');var d='M '+stroke[0][0]+' '+stroke[0][1];
   for(var i=1;i<stroke.length;i++)d+=' L '+stroke[i][0]+' '+stroke[i][1];
@@ -341,11 +407,11 @@ function pathEl(stroke){var p=document.createElementNS(SVGNS,'path');var d='M '+
 function createSigPad(areaId,hintId){
   var pad={strokes:[],svg:null,drawing:false,cur:null};
   function area(){return ge(areaId);}
-  function build(){var a=area();a.querySelectorAll('svg').forEach(function(s){s.remove();});
+  function build(){var a=area();if(!a)return;a.querySelectorAll('svg').forEach(function(s){s.remove();});
     pad.svg=document.createElementNS(SVGNS,'svg');pad.svg.setAttribute('viewBox','0 0 600 155');pad.svg.setAttribute('preserveAspectRatio','none');
-    a.appendChild(pad.svg);pad.strokes=[];pad.cur=null;ge(hintId).style.display='block';}
+    a.appendChild(pad.svg);pad.strokes=[];pad.cur=null;if(ge(hintId))ge(hintId).style.display='block';}
   function pt(e){var r=area().getBoundingClientRect();var cx=(e.touches?e.touches[0].clientX:e.clientX)-r.left;var cy=(e.touches?e.touches[0].clientY:e.clientY)-r.top;return [Math.round(cx/r.width*600),Math.round(cy/r.height*155)];}
-  function start(e){e.preventDefault();pad.drawing=true;ge(hintId).style.display='none';pad.cur=[pt(e)];}
+  function start(e){e.preventDefault();pad.drawing=true;if(ge(hintId))ge(hintId).style.display='none';pad.cur=[pt(e)];}
   function move(e){if(!pad.drawing)return;e.preventDefault();pad.cur.push(pt(e));if(pad.cur._path)pad.cur._path.remove();var p=pathEl(pad.cur);pad.svg.appendChild(p);pad.cur._path=p;}
   function end(){if(!pad.drawing)return;pad.drawing=false;if(pad.cur&&pad.cur.length>1){delete pad.cur._path;var thin=[pad.cur[0]];
     for(var i=1;i<pad.cur.length;i++){var a=thin[thin.length-1],b=pad.cur[i];if(Math.abs(a[0]-b[0])+Math.abs(a[1]-b[1])>=4)thin.push(b);}
@@ -356,7 +422,7 @@ function createSigPad(areaId,hintId){
   build();
   return {build:build,get:function(){return pad.strokes.slice();},has:function(){return pad.strokes.length>0;}};
 }
-var padC,padD;
+var padC,padX;
 function sigSVGString(strokes){
   if(!strokes||!strokes.length)return '<div style="height:58px;display:flex;align-items:center;justify-content:center;color:#bbb;font-style:italic;font-size:11px">Non signé</div>';
   var paths='';strokes.forEach(function(st){if(st.length<1)return;var d='M '+st[0][0]+' '+st[0][1];for(var i=1;i<st.length;i++)d+=' L '+st[i][0]+' '+st[i][1];
@@ -365,8 +431,6 @@ function sigSVGString(strokes){
 }
 
 /* ===== DOCUMENT PDF ===== */
-function getState(){var c=recalc();return {soc:gv('soc'),nom:gv('nom'),prenom:gv('prenom'),mois:gv('mois'),annee:gv('annee'),
-  cv:c.cv,lignes:c.lignes,sigC:padC.get(),sigD:padD.get(),ts:todayFR()};}
 function docHTML(p){
   var t=taux(p.cv||3);var byType={},totTVA=0,totTTC=0;var rowsTbl='';
   (p.lignes||[]).forEach(function(l){var ttc=lineTTC(l,t);
@@ -387,6 +451,18 @@ function docHTML(p){
   recap+='<div style="display:flex;justify-content:space-between;padding:4px 0;font-weight:700;color:#ffe9a8"><span>Total TVA (récupérable)</span><span>'+eur(totTVA)+'</span></div>';
   recap+='<div style="display:flex;justify-content:space-between;padding:8px 0 0;margin-top:6px;border-top:2px solid rgba(255,255,255,.4);font-size:17px;font-weight:800"><span>TOTAL GÉNÉRAL TTC</span><span>'+eur(totTTC)+'</span></div>';
   var th='border:1px solid #d8dee6;background:#eef2f6;color:#0b3d62;padding:6px 8px;font-size:11px;';
+
+  var sigBlocks=[['sigC','Collaborateur'],['sigD','Directeur'],['sigR','Directeur réseau'],['sigJ','Julien DERUY']];
+  var sigsHTML='';
+  sigBlocks.forEach(function(sb){
+    if(!p[sb[0]])return;
+    sigsHTML+='<div style="border:1px solid #d8dee6;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:#5b6470;font-weight:600;margin-bottom:4px">'+sb[1]+'</div>'+sigSVGString(p[sb[0]])+'<div style="font-size:10px;color:#9aa3ae">'+esc(p.ts||'')+'</div></div>';
+  });
+  var justHTML='';
+  if(p.justificatifs&&p.justificatifs.length){
+    justHTML='<div style="margin-top:12px;font-size:11px;color:#5b6470"><b>Justificatifs joints :</b> '+p.justificatifs.map(function(j){return esc(j.nomFichier);}).join(', ')+'</div>';
+  }
+
   return ''+
   '<div style="padding:18px;font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#1c2530;font-size:12px;background:#fff">'+
     '<div style="border-bottom:2px solid #0b3d62;padding-bottom:8px;margin-bottom:12px">'+
@@ -401,114 +477,162 @@ function docHTML(p){
       '<tr><th style="'+th+'text-align:left">Date</th><th style="'+th+'text-align:left">Type</th><th style="'+th+'text-align:left">Motif</th>'+
       '<th style="'+th+'text-align:right">HT</th><th style="'+th+'text-align:right">TVA</th><th style="'+th+'text-align:right">TTC</th></tr>'+rowsTbl+'</table>'+
     '<div style="margin-top:12px;background:linear-gradient(135deg,#0b3d62,#155a8a);color:#fff;border-radius:10px;padding:12px;font-size:13px">'+recap+'</div>'+
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px">'+
-      '<div style="border:1px solid #d8dee6;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:#5b6470;font-weight:600;margin-bottom:4px">Collaborateur</div>'+sigSVGString(p.sigC)+'<div style="font-size:10px;color:#9aa3ae">'+esc(p.ts||'')+'</div></div>'+
-      '<div style="border:1px solid #d8dee6;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:#5b6470;font-weight:600;margin-bottom:4px">Directeur</div>'+sigSVGString(p.sigD)+'<div style="font-size:10px;color:#9aa3ae">'+esc(p.ts||'')+'</div></div>'+
-    '</div></div>';
+    justHTML+
+    '<div style="display:grid;grid-template-columns:repeat('+sigBlocks.filter(function(sb){return !!p[sb[0]];}).length+',1fr);gap:10px;margin-top:14px">'+sigsHTML+'</div>'+
+  '</div>';
 }
 function fileNameFor(s){return 'NDF_'+(s.soc||'').replace(/\s+/g,'')+'_'+(s.nom||'')+'_'+(s.prenom||'')+'_'+(s.mois||'')+(s.annee||'')+'.pdf';}
-
-function genPDF(state,cb){
-  spin(true,'Génération du PDF…');
-  ge('printDoc').innerHTML=docHTML(state);
-  setTimeout(function(){
-    html2canvas(ge('printDoc'),{scale:2,backgroundColor:'#ffffff',useCORS:true}).then(function(canvas){
-      var jsPDF=window.jspdf.jsPDF;var pdf=new jsPDF('p','mm','a4');
-      var pw=210,ph=297,m=8,iw=pw-2*m;var ih=canvas.height*iw/canvas.width;var img=canvas.toDataURL('image/jpeg',0.92);
-      if(ih<=ph-2*m){pdf.addImage(img,'JPEG',m,m,iw,ih);}
-      else{var remaining=ih,offset=0;while(remaining>0){pdf.addImage(img,'JPEG',m,m-offset,iw,ih);remaining-=(ph-2*m);offset+=(ph-2*m);if(remaining>0)pdf.addPage();}}
-      ge('printDoc').innerHTML='';spin(false);cb(pdf);
-    }).catch(function(err){ge('printDoc').innerHTML='';spin(false);alert('Erreur PDF : '+err);});
-  },60);
-}
-
-/* ===== ENVOI ===== */
-function mailtoStr(to,sub,body){return 'mailto:'+to.join(',')+'?subject='+encodeURIComponent(sub)+'&body='+encodeURIComponent(body);}
-function triggerDownload(blob,name){var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove();},1500);}
-
-/* lien court (LZString + is.gd/TinyURL) */
-function encodePayload(p){return LZString.compressToEncodedURIComponent(JSON.stringify(p));}
-function decodePayload(s){try{return JSON.parse(LZString.decompressFromEncodedURIComponent(s));}catch(e){return null;}}
-function makeLink(state){return location.origin+location.pathname+'#dl='+encodePayload(state);}
-function shortenURL(longURL,cb){
-  fetch('https://is.gd/create.php?format=simple&url='+encodeURIComponent(longURL))
-    .then(function(r){return r.text();}).then(function(t){if(t&&t.indexOf('http')===0)cb(t.trim());else throw 0;})
-    .catch(function(){fetch('https://tinyurl.com/api-create.php?url='+encodeURIComponent(longURL))
-      .then(function(r){return r.text();}).then(function(t){cb(t&&t.indexOf('http')===0?t.trim():longURL);})
-      .catch(function(){cb(longURL);});});
-}
-
-function doEnvoi(){
-  var to=recipients();
-  var state=getState();
-  var sub='[NDF] '+state.prenom+' '+state.nom+' — '+state.soc+' — '+state.mois+' '+state.annee;
-  spin(true,'Création du lien…');
-  shortenURL(makeLink(state),function(short){
-    spin(false);
-    var body='Bonjour,\n\nVeuillez trouver la note de frais signee de '+state.prenom+' '+state.nom+' ('+state.soc+').\n\n'+
-      'Telecharger la note de frais (PDF) ici :\n'+short+'\n\n'+
-      'Les justificatifs et le RIB sont joints en pieces jointes a ce mail.\n\nCordialement.';
-    showSent(to,sub,body,short,state);
+function genPDF(state){
+  return new Promise(function(resolve,reject){
+    spin(true,'Génération du PDF…');
+    ge('printDoc').innerHTML=docHTML(state);
+    setTimeout(function(){
+      html2canvas(ge('printDoc'),{scale:2,backgroundColor:'#ffffff',useCORS:true}).then(function(canvas){
+        var jsPDF=window.jspdf.jsPDF;var pdf=new jsPDF('p','mm','a4');
+        var pw=210,ph=297,m=8,iw=pw-2*m;var ih=canvas.height*iw/canvas.width;var img=canvas.toDataURL('image/jpeg',0.92);
+        if(ih<=ph-2*m){pdf.addImage(img,'JPEG',m,m,iw,ih);}
+        else{var remaining=ih,offset=0;while(remaining>0){pdf.addImage(img,'JPEG',m,m-offset,iw,ih);remaining-=(ph-2*m);offset+=(ph-2*m);if(remaining>0)pdf.addPage();}}
+        ge('printDoc').innerHTML='';spin(false);resolve(pdf);
+      }).catch(function(err){ge('printDoc').innerHTML='';spin(false);reject(err);});
+    },60);
   });
 }
-function showSent(to,sub,body,short,state){
-  ge('cardActions').innerHTML='';
-  var info=document.createElement('div');info.className='note';
-  info.innerHTML='✅ Lien prêt. Cliquez pour ouvrir l\'e-mail (destinataire : <b>'+to.join(', ')+'</b>), puis <b>joignez vos justificatifs + RIB</b> avant d\'envoyer. La compta téléchargera la note via le lien.';
-  ge('cardActions').appendChild(info);
-  var b=document.createElement('button');b.className='btn primary';b.innerHTML='📧 Ouvrir l\'e-mail';
-  b.addEventListener('click',function(){window.location.href=mailtoStr(to,sub,body);});
-  ge('cardActions').appendChild(b);
-  var dl=document.createElement('button');dl.className='btn ghost';dl.innerHTML='⬇️ Télécharger le PDF de la note';
-  dl.addEventListener('click',function(){genPDF(state,function(pdf){pdf.save(fileNameFor(state));});});
-  ge('cardActions').appendChild(dl);
-  var box=document.createElement('div');box.className='linkbox';
-  box.innerHTML='<b>Lien de la note</b><div style="font-size:12px;color:var(--gris);margin:4px 0">Si l\'e-mail ne s\'ouvre pas, copiez ce lien dans votre message :</div>'+
-    '<input id="linkOut" readonly value="'+short+'"><button class="btn ghost" id="copyLink" style="margin-top:4px">Copier le lien</button>';
-  ge('cardActions').appendChild(box);
-  ge('linkOut').addEventListener('click',function(){this.select();});
-  ge('copyLink').addEventListener('click',function(){ge('linkOut').select();document.execCommand('copy');this.textContent='Copié ✅';});
-  var again=document.createElement('button');again.className='btn ghost';again.textContent='↩︎ Nouvelle note de frais';
-  again.addEventListener('click',function(){location.href=location.origin+location.pathname;});
-  ge('cardActions').appendChild(again);
-  ge('cardActions').scrollIntoView({behavior:'smooth'});
+function pdfToBase64(pdf){return pdf.output('datauristring').split(',')[1];}
+
+/* ===== MODE NOUVEAU : ENVOI ===== */
+function validerNouveau(){
+  var err=ge('errNouveau');err.style.display='none';
+  if(!gv('nom')||!gv('prenom')){err.textContent='Renseignez le nom et le prénom.';err.style.display='block';return false;}
+  if(!padC.has()){err.textContent='Merci de signer avant d\'envoyer.';err.style.display='block';return false;}
+  var enAttente=justificatifs.filter(function(j){return j.statut==='envoi';});
+  if(enAttente.length){err.textContent='Patientez, certains justificatifs sont encore en cours d\'envoi.';err.style.display='block';return false;}
+  return true;
+}
+function envoyerNouveau(){
+  if(!validerNouveau())return;
+  var btn=ge('btnEnvoi');btn.disabled=true;btn.textContent='Envoi en cours…';
+  var c=recalc();
+  var state={soc:gv('soc'),nom:gv('nom'),prenom:gv('prenom'),mois:gv('mois'),annee:gv('annee'),
+    cv:c.cv,lignes:c.lignes,sigC:padC.get(),ts:todayFR(),
+    justificatifs:justificatifs.filter(function(j){return j.statut==='ok';}).map(function(j){return {nomFichier:j.nomFichier,webUrl:j.webUrl};})};
+  fetch(URL_ETAPE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    etape_terminee:'collaborateur',est_directeur:ge('estDirecteur').checked,
+    nom:state.nom,prenom:state.prenom,societe:state.soc,payload:state
+  })}).then(function(r){return r.json();}).then(function(res){
+    afficherOk('Votre note de frais a bien été transmise pour signature.');
+  }).catch(function(){
+    ge('errNouveau').textContent="L'envoi n'a pas abouti. Réessayez, ou contactez le service RH.";
+    ge('errNouveau').style.display='block';btn.disabled=false;btn.textContent='✅ Signer & envoyer la note de frais';
+  });
 }
 
-/* ===== MODE TÉLÉCHARGEMENT (destinataire du lien) ===== */
-function enterDownloadMode(state){
-  document.querySelectorAll('.wrap > .card').forEach(function(c){c.style.display='none';});
-  var card=ge('cardDownload');card.style.display='block';
-  ge('dlName').textContent=(state.prenom||'')+' '+(state.nom||'')+' — '+(state.soc||'')+' — '+(state.mois||'')+' '+(state.annee||'');
-  ge('dlPreview').innerHTML=docHTML(state);
-  ge('btnDl').addEventListener('click',function(){genPDF(state,function(pdf){pdf.save(fileNameFor(state));});});
+/* ===== MODE ETAPE ===== */
+var ETAPE_ID=null, ETAPE_ROLE=null, ETAPE_STATE=null;
+function chargerEtape(id){
+  fetch(URL_GET+'?id='+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(res){
+    if(!res.ok){document.body.innerHTML='<div style="padding:40px;text-align:center;color:#5b6470">Lien invalide ou expiré.</div>';return;}
+    ETAPE_ID=id;ETAPE_STATE=res.payload;
+    var etape=res.etape;
+    ge('cardLoading').classList.add('hidden');
+    ge('modeEtape').classList.remove('hidden');
+
+    ge('etapeIdentite').innerHTML=
+      '<div class="grid g2"><div><label>Société</label><div class="readonly-field">'+esc(ETAPE_STATE.soc||res.societe||'')+'</div></div>'+
+      '<div><label>Collaborateur</label><div class="readonly-field">'+esc(ETAPE_STATE.prenom||'')+' '+esc(ETAPE_STATE.nom||'')+'</div></div></div>'+
+      '<div class="grid g2" style="margin-top:10px"><div><label>Mois</label><div class="readonly-field">'+esc(ETAPE_STATE.mois||'')+' '+esc(ETAPE_STATE.annee||'')+'</div></div>'+
+      '<div><label>Total TTC</label><div class="readonly-field" style="font-weight:700;color:var(--bleu)">'+eur((ETAPE_STATE.lignes||[]).reduce(function(s,l){return s+num(l.ttc);},0))+'</div></div></div>';
+
+    var t=taux(ETAPE_STATE.cv||3);
+    var rows=(ETAPE_STATE.lignes||[]).map(function(l){
+      return '<tr><td style="padding:5px 8px;border-bottom:1px solid var(--bord)">'+esc(typeLabel(l.type))+'</td>'+
+        '<td style="padding:5px 8px;border-bottom:1px solid var(--bord)">'+esc(l.motif||'')+'</td>'+
+        '<td style="padding:5px 8px;border-bottom:1px solid var(--bord);text-align:right">'+eur(lineTTC(l,t))+'</td></tr>';
+    }).join('');
+    ge('etapeApercu').innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px">'+rows+'</table>'+
+      (ETAPE_STATE.justificatifs&&ETAPE_STATE.justificatifs.length?
+        '<div style="margin-top:10px"><label>Justificatifs</label>'+ETAPE_STATE.justificatifs.map(function(j){return '<div><a href="'+j.webUrl+'" target="_blank">📎 '+esc(j.nomFichier)+'</a></div>';}).join('')+'</div>' : '<div class="note" style="margin-top:10px">Aucun justificatif joint.</div>');
+
+    var sigBlocks=[['sigC','Collaborateur'],['sigD','Directeur'],['sigR','Directeur réseau'],['sigJ','Julien DERUY']];
+    var sigsHTML='';
+    sigBlocks.forEach(function(sb){
+      if(!ETAPE_STATE[sb[0]])return;
+      sigsHTML+='<div class="prev-sig"><div class="who">'+sb[1]+'</div>'+sigSVGString(ETAPE_STATE[sb[0]])+'</div>';
+    });
+    ge('etapeSigsPrec').innerHTML=sigsHTML||'<div class="note">Aucune signature pour l\'instant.</div>';
+
+    if(etape==='termine'||!ROLE_LABELS[etape]){
+      ge('cardSignerEtape').classList.add('hidden');
+      ge('cardDejaFait').classList.remove('hidden');
+      return;
+    }
+    ETAPE_ROLE=etape;
+    ge('etapeRoleLabel').textContent=ROLE_LABELS[etape];
+    padX=createSigPad('sigAreaX','hintX');
+    ge('clrX').addEventListener('click',function(){padX.build();});
+    ge('btnValiderEtape').addEventListener('click',validerEtape);
+  }).catch(function(){
+    document.body.innerHTML='<div style="padding:40px;text-align:center;color:#5b6470">Erreur de chargement. Réessayez plus tard.</div>';
+  });
+}
+function validerEtape(){
+  var err=ge('errEtape');err.style.display='none';
+  if(!padX.has()){err.textContent='Merci de signer avant de transmettre.';err.style.display='block';return;}
+  var btn=ge('btnValiderEtape');btn.disabled=true;btn.textContent='Envoi en cours…';
+
+  var sigField=ETAPE_ROLE==='directeur'?'sigD':(ETAPE_ROLE==='reseau'?'sigR':'sigJ');
+  ETAPE_STATE[sigField]=padX.get();
+  ETAPE_STATE.ts=todayFR();
+
+  var isLast=(ETAPE_ROLE==='deruy');
+  var proceed=function(pdfB64){
+    fetch(URL_ETAPE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      id:ETAPE_ID,etape_terminee:ETAPE_ROLE,
+      nom:ETAPE_STATE.nom,prenom:ETAPE_STATE.prenom,societe:ETAPE_STATE.soc,
+      payload:ETAPE_STATE,pdf_base64:pdfB64||null
+    })}).then(function(r){return r.json();}).then(function(){
+      afficherOk(isLast?'La note de frais signée a été envoyée à la comptabilité.':'Votre signature a été transmise à l\'étape suivante.');
+    }).catch(function(){
+      err.textContent="L'envoi n'a pas abouti. Réessayez.";err.style.display='block';
+      btn.disabled=false;btn.textContent='✅ Signer & transmettre';
+    });
+  };
+  if(isLast){
+    genPDF(ETAPE_STATE).then(function(pdf){proceed(pdfToBase64(pdf));}).catch(function(){
+      err.textContent='Erreur lors de la génération du PDF.';err.style.display='block';
+      btn.disabled=false;btn.textContent='✅ Signer & transmettre';
+    });
+  } else {
+    proceed(null);
+  }
 }
 
-/* ===== MODALE ===== */
-function openReminder(){
-  if(!gv('nom')||!gv('prenom')){alert('Renseignez le nom et le prénom.');return;}
-  if(!padC.has()){alert('Le collaborateur doit signer.');return;}
-  if(!padD.has()){alert('Le directeur doit signer.');return;}
-  ge('remCheck').checked=false;ge('remOk').disabled=true;ge('reminder').classList.add('on');
+function afficherOk(msg){
+  ge('modeNouveau').classList.add('hidden');
+  ge('modeEtape').classList.add('hidden');
+  ge('cardLoading').classList.add('hidden');
+  ge('modeOk').classList.remove('hidden');
+  ge('okMsg').textContent=msg;
 }
 
 /* ===== INIT ===== */
 function init(){
-  initSelects();
-  var h=location.hash||'';
-  if(h.indexOf('#dl=')===0){
-    var state=decodePayload(h.slice(4));
-    if(state){enterDownloadMode(state);return;}
+  var params=new URLSearchParams(location.search);
+  var id=params.get('id');
+  if(id){
+    chargerEtape(id);
+    return;
   }
-  padC=createSigPad('sigAreaC','hintC');padD=createSigPad('sigAreaD','hintD');
+  ge('cardLoading').classList.add('hidden');
+  ge('modeNouveau').classList.remove('hidden');
+  initSelects();
+  padC=createSigPad('sigAreaC','hintC');
   ge('clrC').addEventListener('click',function(){padC.build();});
-  ge('clrD').addEventListener('click',function(){padD.build();});
   ge('addLigne').addEventListener('click',function(){addLigne();});
   ge('cv').addEventListener('input',recalc);
   ge('soc').addEventListener('change',updateRoute);
-  ge('btnEnvoi').addEventListener('click',openReminder);
-  ge('remCheck').addEventListener('change',function(){ge('remOk').disabled=!this.checked;});
-  ge('remCancel').addEventListener('click',function(){ge('reminder').classList.remove('on');});
-  ge('remOk').addEventListener('click',function(){ge('reminder').classList.remove('on');doEnvoi();});
+  ge('btnEnvoi').addEventListener('click',envoyerNouveau);
+  ge('justZone').addEventListener('click',function(){ge('justInput').click();});
+  ge('justInput').addEventListener('change',function(){handleJustFiles(this.files);this.value='';});
   addLigne();
 }
 document.addEventListener('DOMContentLoaded',init);
