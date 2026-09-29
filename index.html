@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
-<head>
+<html lang="fr"><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Note de frais — Edgard Opticiens</title>
@@ -69,9 +68,13 @@ textarea{resize:vertical;min-height:38px;line-height:1.35;overflow:hidden}
 .just-item{border:1px solid var(--bord);border-radius:9px;padding:8px;background:#fff;font-size:11px;position:relative;text-align:center}
 .just-item .ic{height:44px;display:flex;align-items:center;justify-content:center;font-size:24px}
 .just-item.up .ic{color:var(--accent)}
+.just-item.err .ic{color:var(--rouge)}
+.just-item.err{border-color:#f3c4bd;background:#fff8f7}
 .just-item .nm{margin-top:4px;word-break:break-word;line-height:1.2;max-height:28px;overflow:hidden}
 .just-item .rm{position:absolute;top:-7px;right:-7px;background:var(--rouge);color:#fff;border:none;border-radius:50%;width:22px;height:22px;font-size:14px;cursor:pointer;line-height:1}
 .just-item .st{font-size:10px;color:var(--accent);font-weight:700;margin-top:2px}
+.just-item.err .st{color:var(--rouge)}
+.just-item .retry{margin-top:5px;background:#fff;color:var(--bleu2);border:1px solid var(--bord);border-radius:7px;padding:3px 7px;font-size:10.5px;font-weight:600;cursor:pointer;width:100%}
 
 .sig-pad .who{font-size:13px;color:var(--bleu);margin-bottom:5px;font-weight:700}
 .sig-area{border:1px solid var(--bord);border-radius:10px;background:#fff;height:155px;position:relative;touch-action:none;overflow:hidden;background-color:#fff}
@@ -114,7 +117,7 @@ textarea{resize:vertical;min-height:38px;line-height:1.35;overflow:hidden}
   <div class="spin" id="spin"><div class="s"></div><div id="spinTxt" style="font-size:14px;color:var(--bleu);font-weight:600">Patientez…</div></div>
 
   <!-- ===== MODE CHARGEMENT ===== -->
-  <div class="card" id="cardLoading">
+  <div class="card hidden" id="cardLoading">
     <div class="note">Chargement…</div>
   </div>
 
@@ -156,9 +159,9 @@ textarea{resize:vertical;min-height:38px;line-height:1.35;overflow:hidden}
       <div class="bareme-box" style="margin-top:12px">
         <b>Barème fiscal 2026</b> (mis à jour par les RH — non modifiable)
         <table>
-          <tr><th>CV</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9 et +</th></tr>
+          <tbody><tr><th>CV</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9 et +</th></tr>
           <tr><td>€/km</td><td>0,329</td><td>0,406</td><td>0,436</td><td>0,465</td><td>0,497</td><td>0,497</td><td>0,497</td></tr>
-        </table>
+        </tbody></table>
       </div>
     </div>
 
@@ -214,7 +217,7 @@ textarea{resize:vertical;min-height:38px;line-height:1.35;overflow:hidden}
     </div>
 
     <div class="card" id="cardSignerEtape">
-      <h2><span class="n">✍️</span> Votre signature (<span id="etapeRoleLabel"></span>)</h2>
+      <h2><span class="n">✍️</span> Votre signature (<span id="etapeRoleLabel">…</span>)</h2>
       <div class="sig-pad">
         <div class="sig-area" id="sigAreaX"><div class="sig-hint" id="hintX">Signez ici</div></div>
         <button class="sig-clr" id="clrX">Effacer</button>
@@ -365,36 +368,65 @@ function recalc(){
 }
 
 /* ===== JUSTIFICATIFS ===== */
-var justificatifs=[]; // {nomFichier, webUrl, statut:'ok'|'envoi'}
+var justificatifs=[]; // {nomFichier, webUrl, statut:'envoi'|'ok'|'erreur', _file}
 function dossierKey(){return (gv('nom')||'X').replace(/\s+/g,'')+'_'+(gv('prenom')||'X').replace(/\s+/g,'')+'_'+Date.now();}
 var DOSSIER_ID = null;
 function fileToBase64(file){return new Promise(function(resolve,reject){var r=new FileReader();r.onload=function(){resolve(r.result.split(',')[1]);};r.onerror=reject;r.readAsDataURL(file);});}
 function renderJustList(){
   var box=ge('justList');box.innerHTML='';
   justificatifs.forEach(function(j,idx){
-    var div=document.createElement('div');div.className='just-item'+(j.statut==='ok'?' up':'');
+    var cls='just-item'+(j.statut==='ok'?' up':'')+(j.statut==='erreur'?' err':'');
+    var div=document.createElement('div');div.className=cls;
     var icon=/\.pdf$/i.test(j.nomFichier)?'📄':'🖼️';
+    var stTxt=j.statut==='ok'?'✅ Envoyé':(j.statut==='erreur'?'⚠️ Échec de l\'envoi':'⏳ Envoi…');
     div.innerHTML='<div class="ic">'+icon+'</div><div class="nm">'+esc(j.nomFichier)+'</div>'+
-      '<div class="st">'+(j.statut==='ok'?'✅ Envoyé':'⏳ Envoi…')+'</div>'+
+      '<div class="st">'+stTxt+'</div>'+
+      (j.statut==='erreur'?'<button class="retry" data-retry="'+idx+'">Réessayer</button>':'')+
       '<button class="rm" data-idx="'+idx+'">×</button>';
     box.appendChild(div);
   });
   box.querySelectorAll('.rm').forEach(function(btn){
     btn.addEventListener('click',function(){justificatifs.splice(+this.dataset.idx,1);renderJustList();});
   });
+  box.querySelectorAll('[data-retry]').forEach(function(btn){
+    btn.addEventListener('click',function(){retryUpload(+this.dataset.retry);});
+  });
+}
+function uploadOne(entry){
+  entry.statut='envoi';renderJustList();
+  var httpOk=false;
+  return fileToBase64(entry._file).then(function(b64){
+    return fetch(URL_UPLOAD,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contenu_base64:b64,nom_fichier:entry._file.name,type_mime:entry._file.type||'application/octet-stream',dossier:DOSSIER_ID})});
+  }).then(function(r){
+    httpOk=r.ok;
+    return r.json().catch(function(){return {};});
+  }).then(function(res){
+    // Un envoi n'est validé que si la requête HTTP a réussi ET que le backend renvoie
+    // un lien webUrl exploitable. Sans ce contrôle, une erreur backend (ex : jeton
+    // OneDrive expiré) est silencieusement traitée comme un succès, ce qui produit
+    // un lien de justificatif cassé une fois la note de frais transmise.
+    if(httpOk && res && res.ok!==false && res.webUrl){
+      entry.webUrl=res.webUrl;entry.statut='ok';
+    } else {
+      entry.webUrl=null;entry.statut='erreur';
+    }
+    renderJustList();
+  }).catch(function(){
+    entry.webUrl=null;entry.statut='erreur';renderJustList();
+  });
+}
+function retryUpload(idx){
+  var entry=justificatifs[idx];if(!entry)return;
+  uploadOne(entry);
 }
 function handleJustFiles(files){
   if(!DOSSIER_ID) DOSSIER_ID=dossierKey();
   Array.prototype.forEach.call(files,function(file){
     if(file.size>MAX_SIZE){alert('Le fichier "'+file.name+'" dépasse 15 Mo.');return;}
-    var entry={nomFichier:file.name,webUrl:null,statut:'envoi'};
+    var entry={nomFichier:file.name,webUrl:null,statut:'envoi',_file:file};
     justificatifs.push(entry);renderJustList();
-    fileToBase64(file).then(function(b64){
-      return fetch(URL_UPLOAD,{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({contenu_base64:b64,nom_fichier:file.name,type_mime:file.type||'application/octet-stream',dossier:DOSSIER_ID})});
-    }).then(function(r){return r.json();}).then(function(res){
-      entry.webUrl=res.webUrl;entry.statut='ok';renderJustList();
-    }).catch(function(){entry.statut='erreur';renderJustList();});
+    uploadOne(entry);
   });
 }
 
@@ -506,6 +538,8 @@ function validerNouveau(){
   if(!padC.has()){err.textContent='Merci de signer avant d\'envoyer.';err.style.display='block';return false;}
   var enAttente=justificatifs.filter(function(j){return j.statut==='envoi';});
   if(enAttente.length){err.textContent='Patientez, certains justificatifs sont encore en cours d\'envoi.';err.style.display='block';return false;}
+  var enErreur=justificatifs.filter(function(j){return j.statut==='erreur';});
+  if(enErreur.length){err.textContent='L\'envoi d\'un ou plusieurs justificatifs a échoué (voir « Réessayer » ci-dessus). Corrigez avant d\'envoyer la note de frais.';err.style.display='block';return false;}
   return true;
 }
 function envoyerNouveau(){
@@ -548,9 +582,18 @@ function chargerEtape(id){
         '<td style="padding:5px 8px;border-bottom:1px solid var(--bord)">'+esc(l.motif||'')+'</td>'+
         '<td style="padding:5px 8px;border-bottom:1px solid var(--bord);text-align:right">'+eur(lineTTC(l,t))+'</td></tr>';
     }).join('');
+    // Un justificatif sans webUrl exploitable (échec d'envoi côté serveur, ancienne
+    // note antérieure à ce correctif, etc.) ne doit jamais produire de lien cassé :
+    // on affiche un message clair à la place plutôt qu'un <a href> invalide.
+    var justItemsHTML=(ETAPE_STATE.justificatifs||[]).map(function(j){
+      if(j.webUrl && /^https?:\/\//i.test(j.webUrl)){
+        return '<div><a href="'+esc(j.webUrl)+'" target="_blank" rel="noopener">📎 '+esc(j.nomFichier)+'</a></div>';
+      }
+      return '<div style="color:var(--rouge)">⚠️ '+esc(j.nomFichier||'Justificatif')+' — fichier indisponible (échec de l\'envoi, à redemander au collaborateur)</div>';
+    }).join('');
     ge('etapeApercu').innerHTML='<table style="width:100%;border-collapse:collapse;font-size:13px">'+rows+'</table>'+
       (ETAPE_STATE.justificatifs&&ETAPE_STATE.justificatifs.length?
-        '<div style="margin-top:10px"><label>Justificatifs</label>'+ETAPE_STATE.justificatifs.map(function(j){return '<div><a href="'+j.webUrl+'" target="_blank">📎 '+esc(j.nomFichier)+'</a></div>';}).join('')+'</div>' : '<div class="note" style="margin-top:10px">Aucun justificatif joint.</div>');
+        '<div style="margin-top:10px"><label>Justificatifs</label>'+justItemsHTML+'</div>' : '<div class="note" style="margin-top:10px">Aucun justificatif joint.</div>');
 
     var sigBlocks=[['sigC','Collaborateur'],['sigD','Directeur'],['sigR','Directeur réseau'],['sigJ','Julien DERUY']];
     var sigsHTML='';
@@ -637,5 +680,6 @@ function init(){
 }
 document.addEventListener('DOMContentLoaded',init);
 </script>
-</body>
-</html>
+
+
+</body></html>
