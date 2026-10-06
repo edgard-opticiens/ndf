@@ -5,6 +5,7 @@
 <title>Note de frais — Edgard Opticiens</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
 <style>
 :root{
   --bleu:#0b3d62; --bleu2:#155a8a; --accent:#1b9e77; --gris:#5b6470;
@@ -250,6 +251,8 @@ textarea{resize:vertical;min-height:38px;line-height:1.35;overflow:hidden}
 var URL_ETAPE  = 'https://edgard-opticiens.app.n8n.cloud/webhook/ndf-etape';
 var URL_GET    = 'https://edgard-opticiens.app.n8n.cloud/webhook/ndf-get';
 var URL_UPLOAD = 'https://edgard-opticiens.app.n8n.cloud/webhook/ndf-upload';
+var URL_JUSTIF = 'https://edgard-opticiens.app.n8n.cloud/webhook/ndf-justificatifs';
+var MAX_FINAL_BYTES = 11 * 1024 * 1024; // limite webhook n8n (~16 Mo en base64)
 var MAX_SIZE = 15 * 1024 * 1024;
 
 /* ===== RÉFÉRENCES ===== */
@@ -531,6 +534,94 @@ function genPDF(state){
 }
 function pdfToBase64(pdf){return pdf.output('datauristring').split(',')[1];}
 
+/* ===== FUSION NOTE + JUSTIFICATIFS (un seul PDF) ===== */
+function b64ToBytes(b64){var bin=atob(b64),n=bin.length,u=new Uint8Array(n);for(var i=0;i<n;i++)u[i]=bin.charCodeAt(i);return u;}
+function bytesToB64(u8){var s='',CH=0x8000;for(var i=0;i<u8.length;i+=CH)s+=String.fromCharCode.apply(null,u8.subarray(i,i+CH));return btoa(s);}
+function fetchJustif(i,nom,essais){
+  return fetch(URL_JUSTIF+'?id='+encodeURIComponent(ETAPE_ID)+'&i='+i).then(function(r){
+    if(!r.ok)throw new Error('http '+r.status);return r.json();
+  }).then(function(res){
+    if(res&&res.ok&&res.files&&res.files.length)return res.files[0];
+    throw new Error('vide');
+  }).catch(function(e){
+    if(essais>1)return fetchJustif(i,nom,essais-1);
+    var er=new Error('fetch');er.userMsg='Impossible de récupérer le justificatif « '+nom+' ». Vérifiez votre connexion et réessayez.';throw er;
+  });
+}
+/* Réduit une photo (JPG/PNG) : 1800 px max, JPEG qualité 0,82 — évite un PDF final trop lourd */
+function imgToJpegBytes(bytes,mime){
+  return new Promise(function(resolve,reject){
+    var url=URL.createObjectURL(new Blob([bytes],{type:mime}));var im=new Image();
+    im.onload=function(){
+      try{
+        var w=im.naturalWidth,h=im.naturalHeight,k=Math.min(1,1800/Math.max(w,h));
+        var c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*k));c.height=Math.max(1,Math.round(h*k));
+        var cx=c.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,c.width,c.height);cx.drawImage(im,0,0,c.width,c.height);
+        URL.revokeObjectURL(url);
+        c.toBlob(function(b){if(!b){reject(new Error('blob'));return;}var fr=new FileReader();fr.onload=function(){resolve(new Uint8Array(fr.result));};fr.onerror=reject;fr.readAsArrayBuffer(b);},'image/jpeg',0.82);
+      }catch(e){URL.revokeObjectURL(url);reject(e);}
+    };
+    im.onerror=function(){URL.revokeObjectURL(url);reject(new Error('img'));};
+    im.src=url;
+  });
+}
+function addImagePage(doc,jpgBytes){
+  return doc.embedJpg(jpgBytes).then(function(img){
+    var PW=595.28,PH=841.89,M=24;var sc=Math.min((PW-2*M)/img.width,(PH-2*M)/img.height,1);
+    var w=img.width*sc,h=img.height*sc;var pg=doc.addPage([PW,PH]);
+    pg.drawImage(img,{x:(PW-w)/2,y:PH-M-h,width:w,height:h});
+  });
+}
+function addFileToDoc(doc,f){
+  var bytes=b64ToBytes(f.base64);
+  if(bytes[0]===0x25&&bytes[1]===0x50&&bytes[2]===0x44&&bytes[3]===0x46){ // %PDF
+    return PDFLib.PDFDocument.load(bytes,{ignoreEncryption:true}).then(function(src){
+      return doc.copyPages(src,src.getPageIndices());
+    }).then(function(pages){pages.forEach(function(pg){doc.addPage(pg);});});
+  }
+  var mime=(bytes[0]===0x89&&bytes[1]===0x50)?'image/png':'image/jpeg';
+  return imgToJpegBytes(bytes,mime).catch(function(){
+    if(mime==='image/jpeg')return bytes; // JPEG brut en secours
+    throw new Error('image illisible');
+  }).then(function(jpg){return addImagePage(doc,jpg);});
+}
+function addPlaceholder(doc,j){
+  var PW=595.28,PH=841.89;
+  return doc.embedFont(PDFLib.StandardFonts.Helvetica).then(function(font){
+    var pg=doc.addPage([PW,PH]);
+    function clean(t){return String(t||'').replace(/[^\x20-\x7E\xA0-\xFF]/g,'?');}
+    pg.drawText(clean('Justificatif non integre dans ce PDF'),{x:40,y:PH-80,size:16,font:font});
+    pg.drawText(clean('Fichier : '+(j.nomFichier||'')),{x:40,y:PH-110,size:11,font:font});
+    pg.drawText(clean('Format non pris en charge - consulter le lien dans le mail.'),{x:40,y:PH-130,size:11,font:font});
+  });
+}
+/* Retourne le PDF final en base64 : note de frais + tous les justificatifs */
+function mergeJustifs(pdf){
+  var list=(ETAPE_STATE.justificatifs||[]).filter(function(j){return j&&j.webUrl;});
+  if(!list.length)return Promise.resolve(pdfToBase64(pdf));
+  if(!window.PDFLib){var e0=new Error('lib');e0.userMsg="Le module d'assemblage PDF n'a pas pu se charger. Rechargez la page et réessayez.";return Promise.reject(e0);}
+  spin(true,'Assemblage des justificatifs…');
+  return PDFLib.PDFDocument.load(pdf.output('arraybuffer')).then(function(doc){
+    var chain=Promise.resolve();
+    list.forEach(function(j,i){
+      chain=chain.then(function(){
+        spin(true,'Justificatif '+(i+1)+'/'+list.length+'…');
+        return fetchJustif(i,j.nomFichier||'justificatif',2).then(function(f){
+          return addFileToDoc(doc,f).catch(function(){return addPlaceholder(doc,j);});
+        });
+      });
+    });
+    return chain.then(function(){return doc.save();});
+  }).then(function(bytes){
+    spin(false);
+    if(bytes.length>MAX_FINAL_BYTES){
+      alert("Les justificatifs sont trop volumineux pour tenir dans un seul PDF : la note sera envoyée avec des liens vers les justificatifs.");
+      return pdfToBase64(pdf);
+    }
+    return bytesToB64(bytes);
+  }).catch(function(e){spin(false);throw e;});
+}
+
 /* ===== MODE NOUVEAU : ENVOI ===== */
 function validerNouveau(){
   var err=ge('errNouveau');err.style.display='none';
@@ -640,8 +731,9 @@ function validerEtape(){
     });
   };
   if(isLast){
-    genPDF(ETAPE_STATE).then(function(pdf){proceed(pdfToBase64(pdf));}).catch(function(){
-      err.textContent='Erreur lors de la génération du PDF.';err.style.display='block';
+    genPDF(ETAPE_STATE).then(function(pdf){return mergeJustifs(pdf);}).then(function(b64){proceed(b64);}).catch(function(e){
+      spin(false);
+      err.textContent=(e&&e.userMsg)||'Erreur lors de la génération du PDF.';err.style.display='block';
       btn.disabled=false;btn.textContent='✅ Signer & transmettre';
     });
   } else {
