@@ -268,6 +268,7 @@ var TYPES=[
   {k:"repas",l:"Repas"},{k:"postaux",l:"Frais postaux"},{k:"fournitures",l:"Fournitures administratives"},
   {k:"petits",l:"Petits matériels"},{k:"divers",l:"Divers"},{k:"hotelTrain",l:"Hôtel + Train"}];
 function typeLabel(k){for(var i=0;i<TYPES.length;i++)if(TYPES[i].k===k)return TYPES[i].l;return k;}
+/* 'deruy' est conservé uniquement pour terminer une ancienne note déjà engagée dans l'ancien circuit */
 var ROLE_LABELS={directeur:'Directeur',reseau:'Directeur réseau',deruy:'Julien DERUY'};
 
 /* ===== HELPERS ===== */
@@ -281,15 +282,26 @@ function todayFR(){return new Date().toLocaleDateString('fr-FR');}
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function autoGrow(t){t.style.height='auto';t.style.height=t.scrollHeight+'px';}
 function isGdo(soc){var s=(soc||'').toUpperCase();for(var i=0;i<GDO_MARKERS.length;i++)if(s.indexOf(GDO_MARKERS[i])!==-1)return true;return false;}
+function isSiege(soc){return (soc||'').toUpperCase().indexOf('EDGARD DEVELOPPEMENT')!==-1;}
+/* Circuit : collaborateur -> directeur -> (directeur réseau pour la GdO) -> COMPTABILITÉ (plus d'étape Julien Deruy).
+   Doit rester identique à la logique du workflow n8n « NDF - Etape signature (routage automatique) ». */
+function collabEstFinal(soc,estDir){ return isSiege(soc) || (!!estDir && !isGdo(soc)); }
+function etapeEstFinale(role,soc){ return role==='reseau' || role==='deruy' || (role==='directeur' && !isGdo(soc)); }
 var ligneSeq=0;
 
 /* ===== SELECTS ===== */
 function fillSelect(id,arr){var s=ge(id);s.innerHTML='';arr.forEach(function(v){var o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o);});}
 function updateRoute(){
-  var gdo=isGdo(gv('soc'));
-  ge('routebox').innerHTML = gdo
-    ? '➜ Circuit : <b>Directeur du magasin</b> → <b>Directeur réseau</b> → <b>Julien DERUY</b> → <b>Comptabilité</b>'
-    : '➜ Circuit : <b>Directeur du magasin</b> → <b>Julien DERUY</b> → <b>Comptabilité</b>';
+  var soc=gv('soc'),gdo=isGdo(soc),estDir=!!(ge('estDirecteur')&&ge('estDirecteur').checked);
+  var txt;
+  if(isSiege(soc)) txt='➜ Circuit : <b>Votre signature</b> → <b>Comptabilité</b>';
+  else if(gdo) txt = estDir
+    ? '➜ Circuit : <b>Directeur réseau</b> → <b>Comptabilité</b>'
+    : '➜ Circuit : <b>Directeur du magasin</b> → <b>Directeur réseau</b> → <b>Comptabilité</b>';
+  else txt = estDir
+    ? '➜ Circuit : <b>Votre signature</b> → <b>Comptabilité</b>'
+    : '➜ Circuit : <b>Directeur du magasin</b> → <b>Comptabilité</b>';
+  ge('routebox').innerHTML=txt;
 }
 function initSelects(){
   fillSelect('soc',SOCIETES);fillSelect('mois',MOIS);
@@ -595,9 +607,13 @@ function addPlaceholder(doc,j){
     pg.drawText(clean('Format non pris en charge - consulter le lien dans le mail.'),{x:40,y:PH-130,size:11,font:font});
   });
 }
-/* Retourne le PDF final en base64 : note de frais + tous les justificatifs */
-function mergeJustifs(pdf){
-  var list=(ETAPE_STATE.justificatifs||[]).filter(function(j){return j&&j.webUrl;});
+/* Retourne le PDF final en base64 : note de frais + tous les justificatifs.
+   locals = (facultatif) justificatifs encore en mémoire dans le navigateur : utilisé quand la note n'est pas
+   encore enregistrée sur le serveur (cas où le collaborateur est le dernier signataire). */
+function mergeJustifs(pdf,locals){
+  var list=locals
+    ? locals.filter(function(j){return j&&j._file&&j.statut==='ok';})
+    : (ETAPE_STATE.justificatifs||[]).filter(function(j){return j&&j.webUrl;});
   if(!list.length)return Promise.resolve(pdfToBase64(pdf));
   if(!window.PDFLib){var e0=new Error('lib');e0.userMsg="Le module d'assemblage PDF n'a pas pu se charger. Rechargez la page et réessayez.";return Promise.reject(e0);}
   spin(true,'Assemblage des justificatifs…');
@@ -606,7 +622,10 @@ function mergeJustifs(pdf){
     list.forEach(function(j,i){
       chain=chain.then(function(){
         spin(true,'Justificatif '+(i+1)+'/'+list.length+'…');
-        return fetchJustif(i,j.nomFichier||'justificatif',2).then(function(f){
+        var getFile=locals
+          ? fileToBase64(j._file).then(function(b){return {base64:b};})
+          : fetchJustif(i,j.nomFichier||'justificatif',2);
+        return getFile.then(function(f){
           return addFileToDoc(doc,f).catch(function(){return addPlaceholder(doc,j);});
         });
       });
@@ -640,15 +659,29 @@ function envoyerNouveau(){
   var state={soc:gv('soc'),nom:gv('nom'),prenom:gv('prenom'),mois:gv('mois'),annee:gv('annee'),
     cv:c.cv,lignes:c.lignes,sigC:padC.get(),ts:todayFR(),
     justificatifs:justificatifs.filter(function(j){return j.statut==='ok';}).map(function(j){return {nomFichier:j.nomFichier,webUrl:j.webUrl};})};
-  fetch(URL_ETAPE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-    etape_terminee:'collaborateur',est_directeur:ge('estDirecteur').checked,
-    nom:state.nom,prenom:state.prenom,societe:state.soc,payload:state
-  })}).then(function(r){return r.json();}).then(function(res){
-    afficherOk('Votre note de frais a bien été transmise pour signature.');
-  }).catch(function(){
-    ge('errNouveau').textContent="L'envoi n'a pas abouti. Réessayez, ou contactez le service RH.";
+  var estDir=ge('estDirecteur').checked;
+  var estFinal=collabEstFinal(state.soc,estDir);
+  var echec=function(msg){
+    spin(false);
+    ge('errNouveau').textContent=msg||"L'envoi n'a pas abouti. Réessayez, ou contactez le service RH.";
     ge('errNouveau').style.display='block';btn.disabled=false;btn.textContent='✅ Signer & envoyer la note de frais';
-  });
+  };
+  var poster=function(pdfB64){
+    fetch(URL_ETAPE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      etape_terminee:'collaborateur',est_directeur:estDir,
+      nom:state.nom,prenom:state.prenom,societe:state.soc,payload:state,pdf_base64:pdfB64||null
+    })}).then(function(r){return r.json();}).then(function(res){
+      afficherOk(estFinal?'Votre note de frais signée a bien été envoyée à la comptabilité.':'Votre note de frais a bien été transmise pour signature.');
+    }).catch(function(){ echec(); });
+  };
+  if(estFinal){
+    // Pas d'autre signataire : le PDF complet (note + justificatifs) part directement à la comptabilité.
+    genPDF(state).then(function(pdf){return mergeJustifs(pdf,justificatifs);}).then(function(b64){poster(b64);}).catch(function(e){
+      echec((e&&e.userMsg)||'Erreur lors de la génération du PDF.');
+    });
+  } else {
+    poster(null);
+  }
 }
 
 /* ===== MODE ETAPE ===== */
@@ -717,7 +750,8 @@ function validerEtape(){
   ETAPE_STATE[sigField]=padX.get();
   ETAPE_STATE.ts=todayFR();
 
-  var isLast=(ETAPE_ROLE==='deruy');
+  // Dernière signature : directeur (Edgard), directeur réseau (GdO) -> le PDF complet part à la comptabilité.
+  var isLast=etapeEstFinale(ETAPE_ROLE,ETAPE_STATE.soc);
   var proceed=function(pdfB64){
     fetch(URL_ETAPE,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
       id:ETAPE_ID,etape_terminee:ETAPE_ROLE,
@@ -765,6 +799,7 @@ function init(){
   ge('addLigne').addEventListener('click',function(){addLigne();});
   ge('cv').addEventListener('input',recalc);
   ge('soc').addEventListener('change',updateRoute);
+  ge('estDirecteur').addEventListener('change',updateRoute);
   ge('btnEnvoi').addEventListener('click',envoyerNouveau);
   ge('justZone').addEventListener('click',function(){ge('justInput').click();});
   ge('justInput').addEventListener('change',function(){handleJustFiles(this.files);this.value='';});
