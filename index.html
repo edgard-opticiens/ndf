@@ -283,9 +283,13 @@ function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replac
 function autoGrow(t){t.style.height='auto';t.style.height=t.scrollHeight+'px';}
 function isGdo(soc){var s=(soc||'').toUpperCase();for(var i=0;i<GDO_MARKERS.length;i++)if(s.indexOf(GDO_MARKERS[i])!==-1)return true;return false;}
 function isSiege(soc){return (soc||'').toUpperCase().indexOf('EDGARD DEVELOPPEMENT')!==-1;}
-/* Circuit : collaborateur -> directeur -> (directeur réseau pour la GdO) -> COMPTABILITÉ (plus d'étape Julien Deruy).
+/* Circuit normal : collaborateur -> directeur -> (directeur réseau pour la GdO) -> COMPTABILITÉ.
+   Cas « je suis directeur » (auto-déclaré) : saute l'étape "directeur du magasin" (ce serait soi-même)
+   et part directement au niveau au-dessus — Directeur réseau pour la GdO, Julien Deruy pour Edgard
+   (depuis le 2026-10-22 : avant, un directeur Edgard auto-déclaré partait direct en comptabilité sans
+   aucune validation supérieure, seul cas du circuit sans second regard).
    Doit rester identique à la logique du workflow n8n « NDF - Etape signature (routage automatique) ». */
-function collabEstFinal(soc,estDir){ return isSiege(soc) || (!!estDir && !isGdo(soc)); }
+function collabEstFinal(soc,estDir){ return isSiege(soc); }
 function etapeEstFinale(role,soc){ return role==='reseau' || role==='deruy' || (role==='directeur' && !isGdo(soc)); }
 var ligneSeq=0;
 
@@ -299,7 +303,7 @@ function updateRoute(){
     ? '➜ Circuit : <b>Directeur réseau</b> → <b>Comptabilité</b>'
     : '➜ Circuit : <b>Directeur du magasin</b> → <b>Directeur réseau</b> → <b>Comptabilité</b>';
   else txt = estDir
-    ? '➜ Circuit : <b>Votre signature</b> → <b>Comptabilité</b>'
+    ? '➜ Circuit : <b>Votre signature</b> → <b>Julien Deruy</b> → <b>Comptabilité</b>'
     : '➜ Circuit : <b>Directeur du magasin</b> → <b>Comptabilité</b>';
   ge('routebox').innerHTML=txt;
 }
