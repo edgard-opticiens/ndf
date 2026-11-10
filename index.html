@@ -259,6 +259,17 @@ var URL_JUSTIF = 'https://edgard-opticiens.app.n8n.cloud/webhook/ndf-justificati
 // avec "PDF invalide" (vu sur une note avec un justificatif volumineux).
 var MAX_FINAL_BYTES = 7 * 1024 * 1024;
 var MAX_SIZE = 15 * 1024 * 1024;
+// Verrou cote collaborateur (2026-11-10) : la note de frais complete (texte + tous les
+// justificatifs) ne doit JAMAIS etre envoyee en deux morceaux (PDF seul + liens) -- elle part
+// toujours en un seul fichier, comme prevu a l'origine. Pour garantir ca sans jamais depasser
+// MAX_FINAL_BYTES, on plafonne la somme des justificatifs (apres compression des photos) a ce
+// total ; le reliquat (~1 Mo) couvre la page de note elle-meme + l'overhead PDF/base64.
+var MAX_TOTAL_JUSTIF_BYTES = 6 * 1024 * 1024;
+// Compression des photos de justificatifs : appliquee desormais DES L'AJOUT (et plus seulement
+// au moment de l'assemblage final), pour que la taille retenue par le verrou ci-dessus soit la
+// taille reelle qui partira dans le PDF, et pour reduire ce qui est stocke sur OneDrive.
+var IMG_MAX_DIM = 1600;
+var IMG_QUALITY = 0.78;
 
 /* ===== RÉFÉRENCES ===== */
 var SOCIETES=["SAS EDGARD DEVELOPPEMENT","SAS ANGO","SAS BORDO","SAS BIARRO","SAS CAENPO","SAS GIRO",
@@ -402,7 +413,7 @@ function renderJustList(){
     var cls='just-item'+(j.statut==='ok'?' up':'')+(j.statut==='erreur'?' err':'');
     var div=document.createElement('div');div.className=cls;
     var icon=/\.pdf$/i.test(j.nomFichier)?'📄':'🖼️';
-    var stTxt=j.statut==='ok'?'✅ Envoyé':(j.statut==='erreur'?'⚠️ Échec de l\'envoi':'⏳ Envoi…');
+    var stTxt=j.statut==='ok'?'✅ Envoyé':(j.statut==='erreur'?'⚠️ Échec de l\'envoi':(j.statut==='compression'?'⏳ Compression…':'⏳ Envoi…'));
     div.innerHTML='<div class="ic">'+icon+'</div><div class="nm">'+esc(j.nomFichier)+'</div>'+
       '<div class="st">'+stTxt+'</div>'+
       (j.statut==='erreur'?'<button class="retry" data-retry="'+idx+'">Réessayer</button>':'')+
@@ -410,7 +421,11 @@ function renderJustList(){
     box.appendChild(div);
   });
   box.querySelectorAll('.rm').forEach(function(btn){
-    btn.addEventListener('click',function(){justificatifs.splice(+this.dataset.idx,1);renderJustList();});
+    btn.addEventListener('click',function(){
+      var idx=+this.dataset.idx;var removed=justificatifs[idx];
+      if(removed)totalJustifBytes=Math.max(0,totalJustifBytes-(removed.sizeBytes||0));
+      justificatifs.splice(idx,1);renderJustList();
+    });
   });
   box.querySelectorAll('[data-retry]').forEach(function(btn){
     btn.addEventListener('click',function(){retryUpload(+this.dataset.retry);});
@@ -444,13 +459,26 @@ function retryUpload(idx){
   var entry=justificatifs[idx];if(!entry)return;
   uploadOne(entry);
 }
+var totalJustifBytes=0; // somme des justificatifs déjà acceptés (après compression pour les photos) — verrou MAX_TOTAL_JUSTIF_BYTES
 function handleJustFiles(files){
   if(!DOSSIER_ID) DOSSIER_ID=dossierKey();
   Array.prototype.forEach.call(files,function(file){
     if(file.size>MAX_SIZE){alert('Le fichier "'+file.name+'" dépasse 15 Mo.');return;}
-    var entry={nomFichier:file.name,webUrl:null,statut:'envoi',_file:file};
+    var entry={nomFichier:file.name,webUrl:null,statut:'compression',_file:file,sizeBytes:0};
     justificatifs.push(entry);renderJustList();
-    uploadOne(entry);
+    prepareJustifFile(file).then(function(res){
+      var idx=justificatifs.indexOf(entry);
+      if(idx<0)return; // retiré entre-temps (collaborateur a cliqué sur ×)
+      if(totalJustifBytes+res.sizeBytes>MAX_TOTAL_JUSTIF_BYTES){
+        justificatifs.splice(idx,1);renderJustList();
+        var mo=Math.round(MAX_TOTAL_JUSTIF_BYTES/1024/1024);
+        alert('« '+file.name+' » est refusé : avec ce fichier, le total des justificatifs de cette note dépasserait '+mo+' Mo (même après compression des photos). Retirez un justificatif, ou scindez cette note de frais en plusieurs envois, avant d\'ajouter celui-ci.');
+        return;
+      }
+      entry._file=res.file;entry.nomFichier=res.file.name;entry.sizeBytes=res.sizeBytes;
+      totalJustifBytes+=res.sizeBytes;
+      uploadOne(entry);
+    });
   });
 }
 
@@ -569,21 +597,40 @@ function fetchJustif(i,nom,essais){
     var er=new Error('fetch');er.userMsg='Impossible de récupérer le justificatif « '+nom+' ». Vérifiez votre connexion et réessayez.';throw er;
   });
 }
-/* Réduit une photo (JPG/PNG) : 1800 px max, JPEG qualité 0,82 — évite un PDF final trop lourd */
+/* Réduit une photo (JPG/PNG) : IMG_MAX_DIM px max, JPEG qualité IMG_QUALITY — évite un PDF final trop lourd */
 function imgToJpegBytes(bytes,mime){
   return new Promise(function(resolve,reject){
     var url=URL.createObjectURL(new Blob([bytes],{type:mime}));var im=new Image();
     im.onload=function(){
       try{
-        var w=im.naturalWidth,h=im.naturalHeight,k=Math.min(1,1800/Math.max(w,h));
+        var w=im.naturalWidth,h=im.naturalHeight,k=Math.min(1,IMG_MAX_DIM/Math.max(w,h));
         var c=document.createElement('canvas');c.width=Math.max(1,Math.round(w*k));c.height=Math.max(1,Math.round(h*k));
         var cx=c.getContext('2d');cx.fillStyle='#fff';cx.fillRect(0,0,c.width,c.height);cx.drawImage(im,0,0,c.width,c.height);
         URL.revokeObjectURL(url);
-        c.toBlob(function(b){if(!b){reject(new Error('blob'));return;}var fr=new FileReader();fr.onload=function(){resolve(new Uint8Array(fr.result));};fr.onerror=reject;fr.readAsArrayBuffer(b);},'image/jpeg',0.82);
+        c.toBlob(function(b){if(!b){reject(new Error('blob'));return;}var fr=new FileReader();fr.onload=function(){resolve(new Uint8Array(fr.result));};fr.onerror=reject;fr.readAsArrayBuffer(b);},'image/jpeg',IMG_QUALITY);
       }catch(e){URL.revokeObjectURL(url);reject(e);}
     };
     im.onerror=function(){URL.revokeObjectURL(url);reject(new Error('img'));};
     im.src=url;
+  });
+}
+function fileToBytes(file){return new Promise(function(resolve,reject){var r=new FileReader();r.onload=function(){resolve(new Uint8Array(r.result));};r.onerror=reject;r.readAsArrayBuffer(file);});}
+/* Compresse une photo DES L'AJOUT par le collaborateur (et non plus seulement a l'assemblage
+   final) : on connait ainsi la taille reelle tout de suite, pour le verrou MAX_TOTAL_JUSTIF_BYTES,
+   et c'est cette version compressee qui part sur OneDrive. Les PDF ne sont pas recompresses
+   (pas de moteur de rendu PDF cote client) : leur taille brute est comptee telle quelle.*/
+function prepareJustifFile(file){
+  var estImage=/^image\//.test(file.type)||/\.(jpe?g|png)$/i.test(file.name);
+  if(!estImage)return Promise.resolve({file:file,sizeBytes:file.size});
+  return fileToBytes(file).then(function(bytes){
+    return imgToJpegBytes(bytes,file.type||'image/jpeg');
+  }).then(function(jpg){
+    var blob=new Blob([jpg],{type:'image/jpeg'});
+    var newName=file.name.replace(/\.[^.]+$/,'')+'.jpg';
+    var newFile=new File([blob],newName,{type:'image/jpeg'});
+    return {file:newFile,sizeBytes:newFile.size};
+  }).catch(function(){
+    return {file:file,sizeBytes:file.size}; // image illisible : on retombe sur le fichier d'origine
   });
 }
 function addImagePage(doc,jpgBytes){
@@ -643,8 +690,13 @@ function mergeJustifs(pdf,locals){
   }).then(function(bytes){
     spin(false);
     if(bytes.length>MAX_FINAL_BYTES){
-      alert("Les justificatifs sont trop volumineux pour tenir dans un seul PDF : la note sera envoyée avec des liens vers les justificatifs.");
-      return pdfToBase64(pdf);
+      // La note part TOUJOURS en un seul fichier (note + justificatifs) — jamais en note seule
+      // avec des liens à la place. Le verrou MAX_TOTAL_JUSTIF_BYTES à l'ajout des justificatifs
+      // est censé rendre ce cas impossible ; s'il se produit malgré tout (ex : note créée avant
+      // ce correctif), on bloque plutôt que d'envoyer une note incomplète.
+      var e2=new Error('trop volumineux');
+      e2.userMsg="La note de frais complète (texte + justificatifs) dépasse encore la taille maximale autorisée, même après compression. Retirez ou remplacez un justificatif (ex : une photo très volumineuse) avant de réessayer.";
+      throw e2;
     }
     return bytesToB64(bytes);
   }).catch(function(e){spin(false);throw e;});
@@ -655,8 +707,8 @@ function validerNouveau(){
   var err=ge('errNouveau');err.style.display='none';
   if(!gv('nom')||!gv('prenom')){err.textContent='Renseignez le nom et le prénom.';err.style.display='block';return false;}
   if(!padC.has()){err.textContent='Merci de signer avant d\'envoyer.';err.style.display='block';return false;}
-  var enAttente=justificatifs.filter(function(j){return j.statut==='envoi';});
-  if(enAttente.length){err.textContent='Patientez, certains justificatifs sont encore en cours d\'envoi.';err.style.display='block';return false;}
+  var enAttente=justificatifs.filter(function(j){return j.statut==='envoi'||j.statut==='compression';});
+  if(enAttente.length){err.textContent='Patientez, certains justificatifs sont encore en cours de compression/envoi.';err.style.display='block';return false;}
   var enErreur=justificatifs.filter(function(j){return j.statut==='erreur';});
   if(enErreur.length){err.textContent='L\'envoi d\'un ou plusieurs justificatifs a échoué (voir « Réessayer » ci-dessus). Corrigez avant d\'envoyer la note de frais.';err.style.display='block';return false;}
   return true;
