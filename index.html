@@ -132,6 +132,7 @@ textarea{resize:vertical;min-height:38px;line-height:1.35;overflow:hidden}
         <div class="field"><label>Nom</label><input id="nom" placeholder="NOM"></div>
         <div class="field"><label>Prénom</label><input id="prenom" placeholder="Prénom"></div>
       </div>
+      <div class="field" style="margin-bottom:12px" id="collabEmailBlk"><label>E-mail personnel (facultatif — pour être prévenu quand la note sera transmise à la comptabilité)</label><input id="collabEmail" type="email" placeholder="prenom.nom@exemple.fr"></div>
       <div class="grid g2" style="margin-bottom:12px">
         <div class="field"><label>Mois concerné</label><select id="mois"></select></div>
         <div class="field"><label>Année</label><select id="annee"></select></div>
@@ -718,6 +719,7 @@ function envoyerNouveau(){
   var btn=ge('btnEnvoi');btn.disabled=true;btn.textContent='Envoi en cours…';
   var c=recalc();
   var state={soc:gv('soc'),nom:gv('nom'),prenom:gv('prenom'),mois:gv('mois'),annee:gv('annee'),
+    email:gv('collabEmail'),
     cv:c.cv,lignes:c.lignes,sigC:padC.get(),ts:todayFR(),
     justificatifs:justificatifs.filter(function(j){return j.statut==='ok';}).map(function(j){return {nomFichier:j.nomFichier,webUrl:j.webUrl};})};
   var estDir=ge('estDirecteur').checked;
@@ -733,6 +735,7 @@ function envoyerNouveau(){
       nom:state.nom,prenom:state.prenom,societe:state.soc,payload:state,pdf_base64:pdfB64||null
     })}).then(function(r){return r.json();}).then(function(res){
       afficherOk(estFinal?'Votre note de frais signée a bien été envoyée à la comptabilité.':'Votre note de frais a bien été transmise pour signature.');
+      clearNouveauFormSilent();
     }).catch(function(){ echec(); });
   };
   if(estFinal){
@@ -836,6 +839,26 @@ function validerEtape(){
   }
 }
 
+/* Efface le formulaire "nouvelle note de frais" juste après l'envoi initial du collaborateur,
+   pour qu'un autre collaborateur sur un PC partagé en magasin ne voie pas ses données
+   (l'écran de confirmation masque déjà le formulaire ; ceci vide aussi ses champs en mémoire). */
+function clearNouveauFormSilent(){
+  ge('nom').value='';
+  ge('prenom').value='';
+  ge('collabEmail').value='';
+  ge('soc').selectedIndex=0;
+  ge('mois').selectedIndex=0;
+  ge('annee').selectedIndex=0;
+  ge('cv').value=3;
+  ge('estDirecteur').checked=false;
+  ge('lignes').innerHTML='';
+  addLigne();
+  justificatifs=[];
+  renderJustList();
+  if(padC&&padC.build)padC.build();
+  updateRoute();
+  recalc();
+}
 function afficherOk(msg){
   ge('modeNouveau').classList.add('hidden');
   ge('modeEtape').classList.add('hidden');
